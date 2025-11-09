@@ -1,0 +1,17 @@
+[project]
+name = "scrapper-amazon"
+version = "0.1.0"
+description = "Amazon product scraper using Playwright with PostgreSQL storage"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "ipykernel>=7.1.0",
+    "marimo>=0.17.7",
+    "pandas>=2.3.3",
+    "playwright>=1.40.0",
+    "psycopg2-binary>=2.9.9",
+    "sqlalchemy>=2.0.0",
+    "flask>=3.0.0",
+    "pillow>=10.0.0",
+    "requests>=2.31.0",
+]
