@@ -1,16 +1,37 @@
-# Amazon Scraper con Playwright
+# 🛒 Multi-Platform Web Scraper with SQL Dashboard
 
-Sistema completo de scraping de Amazon.es con análisis de datos y frontend SQL **integrado**.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Playwright](https://img.shields.io/badge/Playwright-Latest-green.svg)](https://playwright.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0+-red.svg)](https://flask.palletsprojects.com/)
+[![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3.2-purple.svg)](https://getbootstrap.com/)
 
-## 🚀 Características
+Sistema completo de scraping multi-plataforma (Amazon, El Corte Inglés) con interfaz SQL interactiva y visualización de datos en tiempo real.
 
-- **Scraping desde el Frontend**: Inicia búsquedas directamente desde la interfaz web
-- **Proceso automático**: Scraping → JSON → PostgreSQL sin intervención manual
-- **Datos detallados**: Título, precio, marca, valoraciones, especificaciones, información nutricional
-- **Base de datos dinámica**: Cada búsqueda crea automáticamente su tabla en PostgreSQL
-- **Frontend SQL completo**: Interfaz web para scraping, consultas y visualización
+## ✨ Características Principales
 
-## ✨ Flujo Completo End-to-End
+### 🤖 Web Scraping Avanzado
+- **Multi-plataforma**: Amazon.es y El Corte Inglés
+- **Datos detallados**: Títulos, precios, marcas, valoraciones, imágenes
+- **Modo detallado**: Especificaciones técnicas y información nutricional
+- **Scraping desde Frontend**: Inicia búsquedas directamente desde la web
+
+### 🎨 Dashboard SQL Interactivo (Bootstrap 5)
+- **13 módulos drag & drop**: Redimensionables y posicionables libremente
+- **Editor SQL** con autocompletado y resaltado de sintaxis
+- **28 botones SQL** helpers para consultas comunes
+- **Generación de gráficos**: Chart.js integrado con exportación
+- **Galería de imágenes**: Visualización de productos scrapeados
+- **Vistas guardadas**: Almacena tus consultas favoritas
+- **Canvas infinito**: Workspace de 3000x3000px con scroll
+
+### 💾 Base de Datos Dinámica
+- **Tablas automáticas**: Cada búsqueda crea su propia tabla
+- **Inferencia de esquema**: Detecta tipos de datos automáticamente
+- **PostgreSQL 16**: Contenedor Docker optimizado
+- **Tablas normalizadas**: Soporte para datos relacionales complejos
+
+## 🚀 Flujo Completo End-to-End
 
 ```
 🌐 Frontend (http://localhost:5000)
