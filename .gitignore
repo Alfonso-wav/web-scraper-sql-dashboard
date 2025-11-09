@@ -1,0 +1,51 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Scraped data (mantener estructura pero no los datos)
+data/extractions/**/*.json
+data/extractions/**/*.html
+!data/extractions/.gitkeep
+
+# Static files (imágenes generadas)
+static/charts/*.jpeg
+static/charts/*.jpg
+static/charts/*.png
+static/charts/*.svg
+!static/charts/.gitkeep
+
+# Docker & Database
+.env
+postgres_data/
+pgadmin_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+logs/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# UV lock (opcional, puedes quitarlo si quieres versionarlo)
+# uv.lock

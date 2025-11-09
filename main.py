@@ -1,0 +1,600 @@
+import json
+import asyncio
+import sys
+from playwright.async_api import async_playwright
+
+DEFAULT_ITERATIONS = 50
+
+async def extract_detailed_product_info(context, product_url: str):
+    """
+    Extrae información detallada visitando la página del producto en una nueva pestaña.
+    
+    Args:
+        context: Contexto del browser de Playwright
+        product_url: URL del producto
+    
+    Returns:
+        dict con información detallada
+    """
+    details = {
+        "brand": "N/A",
+        "specifications": [],
+        "product_overview": {},
+        "nutrition_facts": {},
+        "ingredients": "N/A",
+        "description": "N/A",
+        "features": [],
+        "dimensions": "N/A",
+        "weight": "N/A"
+    }
+    
+    # Abrir en nueva página para no perder el contexto de la lista
+    detail_page = await context.new_page()
+    
+    try:
+        await detail_page.goto(product_url, timeout=15000, wait_until="domcontentloaded")
+        
+        # EXTRAER PRODUCT OVERVIEW (aquí está la marca y características principales)
+        overview_rows = await detail_page.query_selector_all("#productOverview_feature_div table tr, #poExpander table tr")
+        for row in overview_rows:
+            try:
+                # Buscar label y valor
+                label_elem = await row.query_selector("td.a-span3, th")
+                value_elem = await row.query_selector("td.a-span9, td:not(.a-span3)")
+                
+                if label_elem and value_elem:
+                    label = await label_elem.inner_text()
+                    value = await value_elem.inner_text()
+                    
+                    if label and value:
+                        label_clean = label.strip()
+                        value_clean = value.strip()
+                        
+                        # Si es la marca
+                        if "brand" in label_clean.lower() or "marca" in label_clean.lower():
+                            details["brand"] = value_clean
+                        
+                        # Guardar en product_overview
+                        details["product_overview"][label_clean] = value_clean
+            except:
+                continue
+        
+        # Características/Especificaciones técnicas (tabla más detallada)
+        spec_rows = await detail_page.query_selector_all("table.a-keyvalue tr, #productDetails_techSpec_section_1 tr, #productDetails_detailBullets_sections1 tr")
+        for row in spec_rows[:15]:  # Limitar a 15 especificaciones
+            try:
+                label_elem = await row.query_selector("th, td.a-span3")
+                value_elem = await row.query_selector("td:not(.a-span3)")
+                if label_elem and value_elem:
+                    label = await label_elem.inner_text()
+                    value = await value_elem.inner_text()
+                    if label and value:
+                        details["specifications"].append({
+                            "label": label.strip(),
+                            "value": value.strip()
+                        })
+                        # Buscar dimensiones y peso específicamente
+                        if "dimensiones" in label.lower() or "dimensions" in label.lower():
+                            details["dimensions"] = value.strip()
+                        if "peso" in label.lower() or "weight" in label.lower():
+                            details["weight"] = value.strip()
+            except:
+                continue
+        
+        # Descripción del producto
+        desc_selectors = [
+            "#feature-bullets ul li span.a-list-item",
+            "#productDescription p",
+            ".a-unordered-list.a-vertical li span"
+        ]
+        for selector in desc_selectors:
+            desc_elems = await detail_page.query_selector_all(selector)
+            if desc_elems:
+                for elem in desc_elems[:10]:  # Primeros 10 puntos
+                    try:
+                        text = await elem.inner_text()
+                        if text and text.strip() and len(text.strip()) > 10:
+                            details["features"].append(text.strip())
+                    except:
+                        continue
+                if details["features"]:
+                    break
+        
+        # Descripción completa
+        desc_elem = await detail_page.query_selector("#productDescription p")
+        if desc_elem:
+            details["description"] = await desc_elem.inner_text()
+        
+        # EXTRAER INFORMACIÓN NUTRICIONAL (para productos alimenticios)
+        try:
+            # Intentar expandir la sección de información nutricional si existe
+            nutrition_expander = await detail_page.query_selector("#nutritionalInfoAndIngredients_feature_div .a-expander-header, a.a-expander-header")
+            if nutrition_expander:
+                # Verificar si ya está expandida
+                is_expanded = await detail_page.query_selector(".a-expander-content-expanded")
+                if not is_expanded:
+                    await nutrition_expander.click()
+                    await detail_page.wait_for_timeout(1000)  # Esperar a que se expanda
+                
+                # PASO 1: Extraer Energía (está en una fila especial)
+                energy_row = await detail_page.query_selector("#nic-eu-nutrition-facts-energy")
+                if energy_row:
+                    try:
+                        energy_label_elem = await energy_row.query_selector("td:nth-child(1) span")
+                        energy_value_elem = await energy_row.query_selector("td:nth-child(2) span")
+                        if energy_label_elem and energy_value_elem:
+                            energy_label = await energy_label_elem.inner_text()
+                            energy_value = await energy_value_elem.inner_text()
+                            if energy_label and energy_value:
+                                details["nutrition_facts"][energy_label.strip()] = energy_value.strip()
+                    except:
+                        pass
+                
+                # PASO 2: Extraer el resto de nutrientes (están en tabla anidada)
+                nutrition_rows = await detail_page.query_selector_all("#nic-eu-nutrition-facts-nutrients tbody tr")
+                for row in nutrition_rows:
+                    try:
+                        # Buscar todos los spans en la primera celda (nombre del nutriente)
+                        # El segundo span suele tener el nombre del nutriente
+                        label_spans = await row.query_selector_all("td:nth-child(1) span")
+                        # El valor está en la segunda celda
+                        value_elem = await row.query_selector("td:nth-child(2) span")
+                        
+                        if label_spans and value_elem:
+                            # Tomar el último span que suele tener el nombre real del nutriente
+                            label_elem = label_spans[-1] if len(label_spans) > 0 else None
+                            
+                            if label_elem:
+                                label = await label_elem.inner_text()
+                                value = await value_elem.inner_text()
+                                
+                                if label and value and label.strip() and value.strip():
+                                    label_clean = label.strip()
+                                    value_clean = value.strip()
+                                    
+                                    # Filtrar textos vacíos o que sean solo guiones
+                                    if label_clean and value_clean and label_clean not in ["—", "-", ""]:
+                                        details["nutrition_facts"][label_clean] = value_clean
+                    except:
+                        continue
+                
+                # Extraer ingredientes si están disponibles
+                ingredients_elem = await detail_page.query_selector("#ingredients_feature_div .a-section, #important-information .content")
+                if ingredients_elem:
+                    ingredients_text = await ingredients_elem.inner_text()
+                    if ingredients_text and ingredients_text.strip():
+                        details["ingredients"] = ingredients_text.strip()
+        except Exception as e:
+            # Si no hay información nutricional, simplemente continuar
+            pass
+        
+    except Exception as e:
+        print(f"    ⚠️ Error extrayendo detalles: {e}")
+    finally:
+        # Cerrar la página de detalles
+        await detail_page.close()
+    
+    return details
+
+
+async def scrape_amazon_products(search_term: str, max_products: int = 50, debug: bool = False, detailed: bool = False):
+    """
+    Scraper de productos de Amazon que extrae información de los productos mejor valorados.
+    
+    Args:
+        search_term: Término de búsqueda
+        max_products: Número máximo de productos a extraer (default: 50)
+        debug: Si es True, imprime información de depuración
+        detailed: Si es True, visita cada producto para obtener más información (más lento)
+    """
+    products = []
+    
+    print(f"🚀 Iniciando scraping para: {search_term}", flush=True)
+    print(f"📦 Objetivo: {max_products} productos", flush=True)
+    
+    async with async_playwright() as p:
+        print("🌐 Abriendo navegador...", flush=True)
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        )
+        page = await context.new_page()
+        
+        # Navegar a Amazon
+        search_url = f"https://www.amazon.es/s?k={search_term.replace(' ', '+')}"
+        print(f"🔍 Navegando a Amazon.es...", flush=True)
+        await page.goto(search_url, wait_until="domcontentloaded")
+        print(f"✅ Página cargada, extrayendo productos...", flush=True)
+        await page.wait_for_timeout(2000)  # Esperar 2 segundos para que cargue
+        
+        page_num = 1
+        
+        while len(products) < max_products:
+            print(f"📄 Procesando página {page_num}...", flush=True)
+            
+            # Esperar a que los productos se carguen
+            print(f"⏳ Esperando carga de productos...", flush=True)
+            await page.wait_for_selector('[data-component-type="s-search-result"]', timeout=10000)
+            
+            # Extraer productos de la página actual
+            product_elements = await page.query_selector_all('[data-component-type="s-search-result"]')
+            print(f"🔎 Encontrados {len(product_elements)} productos en la página", flush=True)
+            
+            # Extraer datos básicos primero (sin navegación)
+            products_data = []
+            for idx, element in enumerate(product_elements, 1):
+                if len(products) + len(products_data) >= max_products:
+                    break
+                
+                # Progress update cada producto
+                current_total = len(products) + len(products_data) + 1
+                print(f"🔄 [{current_total}/{max_products}] Extrayendo producto {idx} de la página {page_num}...", flush=True)
+                
+                try:
+                    # ASIN (ID del producto)
+                    asin = await element.get_attribute("data-asin")
+                    
+                    if debug and len(products) == 0:
+                        # Imprimir el HTML del primer elemento para debug
+                        html = await element.inner_html()
+                        print(f"\n🔍 DEBUG - HTML del primer producto:\n{html[:500]}...\n")
+                    
+                    # Título - intentar múltiples selectores
+                    title = "N/A"
+                    title_selectors = [
+                        "h2 a span",
+                        "h2 span",
+                        ".a-size-medium.a-color-base.a-text-normal",
+                        ".a-size-base-plus.a-color-base.a-text-normal",
+                        "h2.a-size-mini a span"
+                    ]
+                    for selector in title_selectors:
+                        title_elem = await element.query_selector(selector)
+                        if title_elem:
+                            title = await title_elem.inner_text()
+                            if title and title.strip():
+                                break
+                    
+                    # Precio - capturar precio completo (euros + céntimos)
+                    price = "N/A"
+                    # Intentar primero con el offscreen que tiene el precio completo
+                    price_elem = await element.query_selector(".a-price .a-offscreen")
+                    if price_elem:
+                        price = await price_elem.inner_text()
+                        price = price.strip()
+                    else:
+                        # Si no está, construir desde whole + fraction
+                        price_whole = ""
+                        price_fraction = ""
+                        
+                        whole_elem = await element.query_selector(".a-price-whole")
+                        if whole_elem:
+                            price_whole = await whole_elem.inner_text()
+                            price_whole = price_whole.replace("\n", "").replace(",", ".").strip()
+                        
+                        fraction_elem = await element.query_selector(".a-price-fraction")
+                        if fraction_elem:
+                            price_fraction = await fraction_elem.inner_text()
+                            price_fraction = price_fraction.strip()
+                        
+                        if price_whole:
+                            # Eliminar el punto/coma decimal si ya está en whole
+                            price_whole = price_whole.rstrip(".,")
+                            if price_fraction:
+                                price = f"{price_whole},{price_fraction}€"
+                            else:
+                                price = f"{price_whole}€"
+                    
+                    # Rating
+                    rating = "N/A"
+                    rating_elem = await element.query_selector(".a-icon-alt")
+                    if rating_elem:
+                        rating = await rating_elem.inner_text()
+                    
+                    # Número de reseñas - intentar múltiples selectores
+                    reviews_count = "0"
+                    reviews_selectors = [
+                        "span.a-size-base.s-underline-text",
+                        "span[aria-label*='valoraciones']",
+                        ".a-size-base"
+                    ]
+                    for selector in reviews_selectors:
+                        reviews_elem = await element.query_selector(selector)
+                        if reviews_elem:
+                            reviews_text = await reviews_elem.inner_text()
+                            if reviews_text and any(char.isdigit() for char in reviews_text):
+                                reviews_count = reviews_text
+                                break
+                    
+                    # URL del producto
+                    product_url = "N/A"
+                    link_elem = await element.query_selector("h2 a")
+                    if not link_elem:
+                        link_elem = await element.query_selector("a.a-link-normal")
+                    if link_elem:
+                        product_url = await link_elem.get_attribute("href")
+                        if product_url and not product_url.startswith("http"):
+                            product_url = f"https://www.amazon.es{product_url}"
+                    
+                    # Imagen
+                    image_url = "N/A"
+                    img_elem = await element.query_selector("img.s-image")
+                    if img_elem:
+                        image_url = await img_elem.get_attribute("src")
+                    
+                    # Marca y características adicionales del contenedor de detalles
+                    brand = "N/A"
+                    additional_specs = {}
+                    
+                    # Buscar en el contenedor de características del producto
+                    details_container = await element.query_selector("div.a-section.a-spacing-small")
+                    if details_container:
+                        # Buscar todas las filas de características
+                        detail_rows = await details_container.query_selector_all("div.a-row")
+                        for row in detail_rows:
+                            row_text = await row.inner_text()
+                            if row_text and ":" in row_text:
+                                parts = row_text.split(":", 1)
+                                if len(parts) == 2:
+                                    key = parts[0].strip()
+                                    value = parts[1].strip()
+                                    
+                                    # Si es el nombre de marca
+                                    if "brand" in key.lower() or "marca" in key.lower():
+                                        brand = value
+                                    else:
+                                        # Guardar otras características
+                                        additional_specs[key] = value
+                    
+                    # Si no encontró marca en el contenedor, intentar con selectores tradicionales
+                    if brand == "N/A":
+                        brand_selectors = [
+                            "h5 span.a-size-base.a-color-base",
+                            "span.a-size-base-plus.a-color-base",
+                            "div.a-row.a-size-base.a-color-secondary span.a-size-base.a-color-base",
+                            ".s-line-clamp-1 .a-size-base-plus",
+                            "span.a-color-base.puis-normal-weight-text"
+                        ]
+                        for selector in brand_selectors:
+                            brand_elem = await element.query_selector(selector)
+                            if brand_elem:
+                                brand_text = await brand_elem.inner_text()
+                                # Validar que sea realmente una marca
+                                if brand_text and brand_text.strip():
+                                    brand_clean = brand_text.strip()
+                                    if (len(brand_clean) < 50 and 
+                                        not brand_clean.replace(".", "").replace(",", "").isdigit() and
+                                        "€" not in brand_clean and
+                                        "valoraciones" not in brand_clean.lower()):
+                                        brand = brand_clean
+                                        break
+                    
+                    # Prime
+                    has_prime = False
+                    prime_elem = await element.query_selector("i.a-icon-prime, span[aria-label='Amazon Prime']")
+                    if prime_elem:
+                        has_prime = True
+                    
+                    # Envío gratis
+                    free_shipping = False
+                    shipping_elem = await element.query_selector("span[aria-label*='envío'], span:has-text('Envío GRATIS')")
+                    if shipping_elem:
+                        free_shipping = True
+                    
+                    # Disponibilidad
+                    availability = "N/A"
+                    availability_elem = await element.query_selector(".a-size-base.a-color-price, .a-size-base.a-color-success")
+                    if availability_elem:
+                        availability = await availability_elem.inner_text()
+                    
+                    # Descuento/Cupón
+                    discount = "N/A"
+                    discount_elem = await element.query_selector(".s-coupon-unclipped, .savingPriceOverride")
+                    if discount_elem:
+                        discount = await discount_elem.inner_text()
+                    
+                    # Precio anterior (tachado)
+                    original_price = "N/A"
+                    original_price_elem = await element.query_selector(".a-price.a-text-price .a-offscreen")
+                    if original_price_elem:
+                        original_price = await original_price_elem.inner_text()
+                    
+                    # Vendedor/Seller
+                    seller = "N/A"
+                    seller_elem = await element.query_selector(".a-size-base.a-color-secondary")
+                    if seller_elem:
+                        seller_text = await seller_elem.inner_text()
+                        if seller_text and "de " in seller_text.lower():
+                            seller = seller_text
+                    
+                    # Opciones de color/tamaño disponibles
+                    options = []
+                    options_elems = await element.query_selector_all(".a-button-text")
+                    for opt_elem in options_elems[:5]:  # Limitar a 5 opciones
+                        opt_text = await opt_elem.inner_text()
+                        if opt_text and opt_text.strip():
+                            options.append(opt_text.strip())
+                    
+                    product_data = {
+                        "asin": asin or "N/A",
+                        "title": title.strip() if title else "N/A",
+                        "brand": brand.strip() if brand else "N/A",
+                        "price": price.strip() if price else "N/A",
+                        "original_price": original_price.strip() if original_price else "N/A",
+                        "discount": discount.strip() if discount else "N/A",
+                        "rating": rating.strip() if rating else "N/A",
+                        "reviews_count": reviews_count.strip() if reviews_count else "0",
+                        "has_prime": has_prime,
+                        "free_shipping": free_shipping,
+                        "availability": availability.strip() if availability else "N/A",
+                        "seller": seller.strip() if seller else "N/A",
+                        "options": options,
+                        "additional_specs": additional_specs,  # Características adicionales del producto
+                        "url": product_url,
+                        "image_url": image_url,
+                        "search_term": search_term,
+                        "position": len(products) + len(products_data) + 1
+                    }
+                    
+                    # Solo añadir si al menos tiene título
+                    if title != "N/A":
+                        products_data.append(product_data)
+                        title_preview = title[:50] if len(title) > 50 else title
+                        current_total = len(products) + len(products_data)
+                        print(f"✅ [{current_total}/{max_products}] {title_preview}...", flush=True)
+                    elif debug:
+                        print(f"  ⚠️ Producto sin título - ASIN: {asin}", flush=True)
+                    
+                except Exception as e:
+                    if debug:
+                        print(f"  ⚠️ Error extrayendo producto: {e}", flush=True)
+                        import traceback
+                        traceback.print_exc()
+                    continue
+            
+            # Si modo detallado, ahora visitar cada producto en nueva pestaña
+            if detailed:
+                print(f"🔍 Extrayendo información detallada de {len(products_data)} productos...", flush=True)
+                for idx, product_data in enumerate(products_data, 1):
+                    if product_data.get("url") and product_data["url"] != "N/A":
+                        print(f"🌐 [{idx}/{len(products_data)}] Visitando: {product_data['title'][:40]}...", flush=True)
+                        detailed_info = await extract_detailed_product_info(context, product_data["url"])
+                        
+                        # Actualizar marca si se encontró en la página de detalle
+                        if detailed_info.get("brand") and detailed_info["brand"] != "N/A":
+                            product_data["brand"] = detailed_info["brand"]
+                        
+                        # Añadir el resto de información detallada
+                        product_data.update(detailed_info)
+                        print(f"✔️  [{idx}/{len(products_data)}] Completado", flush=True)
+            
+            # Añadir todos los productos de esta página
+            print(f"💾 Agregando {len(products_data)} productos al resultado...", flush=True)
+            products.extend(products_data)
+            print(f"📊 Total acumulado: {len(products)}/{max_products} productos", flush=True)
+            
+            # Verificar si hay siguiente página
+            if len(products) < max_products:
+                next_button = await page.query_selector("a.s-pagination-next")
+                if next_button:
+                    is_disabled = await next_button.get_attribute("aria-disabled")
+                    if is_disabled != "true":
+                        print(f"  ➡️  Navegando a página {page_num + 1}...", flush=True)
+                        await next_button.click()
+                        await page.wait_for_timeout(2000)  # Esperar 2 segundos
+                        page_num += 1
+                    else:
+                        print("📍 No hay más páginas disponibles", flush=True)
+                        break
+                else:
+                    print("📍 No se encontró botón de siguiente página")
+                    break
+            else:
+                break
+        
+        await browser.close()
+    
+    return products[:max_products]
+
+
+def save_to_json(data: list, filename: str = "amazon_products.json"):
+    """
+    Guarda los datos en un archivo JSON, evitando duplicados.
+    Si el archivo existe, solo añade productos nuevos (por ASIN).
+    """
+    from pathlib import Path
+    
+    filepath = Path(filename)
+    existing_data = []
+    existing_asins = set()
+    
+    # Leer datos existentes si el archivo existe
+    if filepath.exists():
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+                existing_asins = {item.get('asin') for item in existing_data if item.get('asin')}
+            print(f"📂 Archivo existente encontrado con {len(existing_data)} productos", flush=True)
+        except Exception as e:
+            print(f"⚠️  Error leyendo archivo existente: {e}", flush=True)
+    
+    # Filtrar productos nuevos (por ASIN)
+    new_products = []
+    duplicates = 0
+    
+    for product in data:
+        asin = product.get('asin')
+        if asin and asin != 'N/A' and asin not in existing_asins:
+            new_products.append(product)
+            existing_asins.add(asin)
+        else:
+            duplicates += 1
+    
+    # Combinar datos existentes + nuevos
+    combined_data = existing_data + new_products
+    
+    # Guardar
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(combined_data, f, ensure_ascii=False, indent=2)
+    
+    # Reportar resultados
+    if new_products:
+        print(f"✅ {len(new_products)} productos nuevos añadidos", flush=True)
+    if duplicates > 0:
+        print(f"⏭️  {duplicates} productos duplicados omitidos", flush=True)
+    
+    print(f"💾 Total en archivo: {len(combined_data)} productos", flush=True)
+    print(f"📄 Guardado en: {filename}", flush=True)
+
+
+async def main():
+    """Función principal"""
+    print("🛒 Amazon Product Scraper")
+    print("=" * 50)
+    
+    # Verificar si se pasa el término como argumento
+    if len(sys.argv) > 1:
+        search_term = sys.argv[1]
+        # Segundo argumento opcional: número de productos
+        iterations = int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_ITERATIONS
+        detailed = True  # Modo detallado por defecto desde API
+        debug = False
+    else:
+        # Solicitar término de búsqueda al usuario
+        search_term = input("\n📝 Introduce el término de búsqueda: ").strip()
+        
+        if not search_term:
+            print("❌ Debes introducir un término de búsqueda")
+            return
+        
+        # Preguntar número de productos
+        iterations_input = input(f"🔢 ¿Cuántos productos quieres scrapear? (default: {DEFAULT_ITERATIONS}): ").strip()
+        iterations = int(iterations_input) if iterations_input.isdigit() else DEFAULT_ITERATIONS
+        
+        # Preguntar si quiere modo detallado
+        detailed_input = input("📊 ¿Extraer información DETALLADA de cada producto? (más lento) (s/n): ").strip().lower()
+        detailed = detailed_input in ['s', 'si', 'sí', 'y', 'yes']
+        
+        # Preguntar si quiere modo debug
+        debug_input = input("🐛 ¿Activar modo debug? (s/n): ").strip().lower()
+        debug = debug_input in ['s', 'si', 'sí', 'y', 'yes']
+    
+    if detailed:
+        print("\n⏱️  AVISO: El modo detallado visita cada producto individualmente.")
+        print(f"   Esto puede tardar varios minutos para {iterations} productos.\n")
+    
+    # Scraping
+    products = await scrape_amazon_products(search_term, max_products=iterations, debug=debug, detailed=detailed)
+    
+    # Guardar resultados
+    filename = f"data/extractions/amazon/amazon_{search_term.replace(' ', '_')}.json"
+    save_to_json(products, filename)
+    
+    print(f"\n✨ Scraping completado!")
+    print(f"📊 Total de productos extraídos: {len(products)}")
+    
+    return filename
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
