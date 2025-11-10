@@ -148,10 +148,27 @@ async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITER
     
     async with async_playwright() as p:
         print("🌐 Iniciando navegador...", flush=True)
-        browser = await p.chromium.launch(
-            headless=False,
-            args=['--disable-blink-features=AutomationControlled']
-        )
+        
+        try:
+            browser = await p.chromium.launch(
+                headless=False,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox'
+                ]
+            )
+        except Exception as e:
+            print(f"❌ Error al iniciar navegador: {e}", flush=True)
+            print("🔄 Intentando con modo headless...", flush=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox'
+                ]
+            )
         
         # Configurar contexto
         context = await browser.new_context(
@@ -171,15 +188,21 @@ async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITER
         
         try:
             print(f"🌐 Navegando a: {search_url}", flush=True)
-            await page.goto(search_url, timeout=30000, wait_until="domcontentloaded")
+            
+            try:
+                await page.goto(search_url, timeout=60000, wait_until="domcontentloaded")
+            except Exception as nav_error:
+                print(f"⚠️ Error de navegación inicial: {nav_error}", flush=True)
+                print("🔄 Reintentando con timeout más largo...", flush=True)
+                await page.goto(search_url, timeout=90000, wait_until="networkidle")
             
             # Esperar a que aparezca el buscador
             print("⏳ Esperando que aparezca el buscador...", flush=True)
-            await asyncio.sleep(2)
+            await asyncio.sleep(3)
             
             try:
                 # Esperar y escribir en el input de búsqueda
-                await page.wait_for_selector('input.search-bar__input', timeout=10000)
+                await page.wait_for_selector('input.search-bar__input', timeout=15000)
                 print(f"✏️  Escribiendo término de búsqueda: {search_term}", flush=True)
                 
                 # Limpiar y escribir en el input
