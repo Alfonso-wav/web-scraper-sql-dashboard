@@ -270,8 +270,8 @@ def start_scraping():
     # Validar número de productos
     try:
         num_products = int(num_products)
-        if num_products < 1 or num_products > 200:
-            return jsonify({'success': False, 'error': 'El número debe estar entre 1 y 200'})
+        if num_products < 1:
+            return jsonify({'success': False, 'error': 'El número debe ser mayor a 0'})
     except ValueError:
         return jsonify({'success': False, 'error': 'Número de productos inválido'})
     
