@@ -177,7 +177,7 @@ async def extract_detailed_product_info(context, product_url: str):
     return details
 
 
-async def scrape_amazon_products(search_term: str, max_products: int = 50, debug: bool = False, detailed: bool = False):
+async def scrape_amazon_products(search_term: str, max_products: int = 50, debug: bool = False, detailed: bool = False, headless: bool = False):
     """
     Scraper de productos de Amazon que extrae información de los productos mejor valorados.
     
@@ -186,15 +186,17 @@ async def scrape_amazon_products(search_term: str, max_products: int = 50, debug
         max_products: Número máximo de productos a extraer (default: 50)
         debug: Si es True, imprime información de depuración
         detailed: Si es True, visita cada producto para obtener más información (más lento)
+        headless: Si es True, ejecuta el navegador sin ventana visible
     """
     products = []
     
     print(f"🚀 Iniciando scraping para: {search_term}", flush=True)
     print(f"📦 Objetivo: {max_products} productos", flush=True)
+    print(f"🖥️  Modo headless: {'Activado (sin ventana)' if headless else 'Desactivado (con ventana)'}", flush=True)
     
     async with async_playwright() as p:
         print("🌐 Abriendo navegador...", flush=True)
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=headless)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         )
@@ -559,6 +561,8 @@ async def main():
         iterations = int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_ITERATIONS
         detailed = True  # Modo detallado por defecto desde API
         debug = False
+        headless_mode = "--headless" in sys.argv
+        print(f"🖥️  Modo: {'Headless (sin ventana)' if headless_mode else 'Con ventana visible'}")
     else:
         # Solicitar término de búsqueda al usuario
         search_term = input("\n📝 Introduce el término de búsqueda: ").strip()
@@ -578,13 +582,15 @@ async def main():
         # Preguntar si quiere modo debug
         debug_input = input("🐛 ¿Activar modo debug? (s/n): ").strip().lower()
         debug = debug_input in ['s', 'si', 'sí', 'y', 'yes']
+        
+        headless_mode = False  # Por defecto con ventana en modo interactivo
     
     if detailed:
         print("\n⏱️  AVISO: El modo detallado visita cada producto individualmente.")
         print(f"   Esto puede tardar varios minutos para {iterations} productos.\n")
     
     # Scraping
-    products = await scrape_amazon_products(search_term, max_products=iterations, debug=debug, detailed=detailed)
+    products = await scrape_amazon_products(search_term, max_products=iterations, debug=debug, detailed=detailed, headless=headless_mode)
     
     # Guardar resultados
     filename = f"data/extractions/amazon/amazon_{search_term.replace(' ', '_')}.json"

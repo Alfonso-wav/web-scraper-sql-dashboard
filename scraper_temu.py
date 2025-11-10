@@ -132,7 +132,7 @@ async def extract_detailed_product_info(context, product_url: str):
     return details
 
 
-async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITERATIONS, detailed: bool = False):
+async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITERATIONS, detailed: bool = False, headless: bool = False):
     """
     Realiza scraping de productos en El Corte Inglés
     
@@ -140,6 +140,7 @@ async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITER
         search_term: Término de búsqueda
         max_products: Número máximo de productos a scrapear
         detailed: Si es True, visita cada producto para obtener información detallada
+        headless: Si es True, ejecuta el navegador sin ventana visible
     
     Returns:
         list: Lista de productos scrapeados
@@ -148,10 +149,11 @@ async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITER
     
     async with async_playwright() as p:
         print("🌐 Iniciando navegador...", flush=True)
+        print(f"🖥️  Modo headless: {'Activado (sin ventana)' if headless else 'Desactivado (con ventana)'}", flush=True)
         
         try:
             browser = await p.chromium.launch(
-                headless=False,
+                headless=headless,
                 args=[
                     '--disable-blink-features=AutomationControlled',
                     '--disable-dev-shm-usage',
@@ -159,10 +161,10 @@ async def scrape_corte_ingles(search_term: str, max_products: int = DEFAULT_ITER
                 ]
             )
         except Exception as e:
-            print(f"❌ Error al iniciar navegador: {e}", flush=True)
-            print("🔄 Intentando con modo headless...", flush=True)
+            print(f"❌ Error al iniciar navegador en modo {'headless' if headless else 'visible'}: {e}", flush=True)
+            print(f"🔄 Intentando con modo {'visible' if headless else 'headless'}...", flush=True)
             browser = await p.chromium.launch(
-                headless=True,
+                headless=not headless,  # Invertir el modo
                 args=[
                     '--disable-blink-features=AutomationControlled',
                     '--disable-dev-shm-usage',
@@ -497,19 +499,21 @@ async def main():
     """Función principal"""
     if len(sys.argv) < 2:
         print("❌ Error: Debes proporcionar un término de búsqueda")
-        print("📝 Uso: python scraper_temu.py <término_búsqueda> [max_productos] [--detailed]")
-        print("📝 Ejemplo: python scraper_temu.py 'cafe' 30 --detailed")
+        print("📝 Uso: python scraper_temu.py <término_búsqueda> [max_productos] [--detailed] [--headless]")
+        print("📝 Ejemplo: python scraper_temu.py 'cafe' 30 --detailed --headless")
         sys.exit(1)
     
     search_term = sys.argv[1]
     max_products = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else DEFAULT_ITERATIONS
     detailed = "--detailed" in sys.argv
+    headless_mode = "--headless" in sys.argv
     
     print("=" * 80)
     print("🛒 EL CORTE INGLÉS SCRAPER")
     print("=" * 80)
+    print(f"🖥️  Modo: {'Headless (sin ventana)' if headless_mode else 'Con ventana visible'}")
     
-    products = await scrape_corte_ingles(search_term, max_products, detailed)
+    products = await scrape_corte_ingles(search_term, max_products, detailed, headless_mode)
     
     if products:
         save_to_json(products, search_term)

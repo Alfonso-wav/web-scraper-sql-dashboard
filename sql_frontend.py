@@ -260,6 +260,7 @@ def start_scraping():
     platform = data.get('platform', 'amazon').strip()  # amazon o corte_ingles
     search_term = data.get('search_term', '').strip()
     num_products = data.get('num_products', 50)
+    headless = data.get('headless', True)  # Por defecto en modo headless
     
     if not search_term:
         return jsonify({'success': False, 'error': 'Término de búsqueda vacío'})
@@ -324,8 +325,15 @@ def start_scraping():
             # Seleccionar script según la plataforma
             script_name = 'main.py' if platform == 'amazon' else 'scraper_temu.py'
             
+            # Construir argumentos del comando
+            cmd_args = ['.venv/bin/python', script_name, search_term, str(num_products)]
+            
+            # Agregar flag --headless si corresponde
+            if headless:
+                cmd_args.append('--headless')
+            
             result = subprocess.Popen(
-                ['.venv/bin/python', script_name, search_term, str(num_products)],
+                cmd_args,
                 cwd=os.getcwd(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
