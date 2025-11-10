@@ -813,9 +813,9 @@
             
             <!-- Módulo 5: Generador de Gráficos -->
             <div class="draggable-module" draggable="false" data-module-id="graficos" data-module-name="Gráficos" data-module-icon="bi-bar-chart-fill" style="left: 20px; top: 1010px; width: 600px; height: 500px;">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
                             <h5 class="card-title mb-0"><i class="bi bi-bar-chart-fill"></i> Generador de Gráficos</h5>
                             <div class="d-flex gap-2 align-items-center">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('graficos')" title="Minimizar">
@@ -825,7 +825,7 @@
                             </div>
                         </div>
                         
-                        <div id="chartConfigSection" class="d-none">
+                        <div id="chartConfigSection" class="d-none flex-shrink-0">
                             <div class="alert alert-info small mb-3">
                                 <i class="bi bi-info-circle"></i> Ejecuta una consulta primero para generar gráficos
                             </div>
@@ -874,12 +874,12 @@
                             </div>
                         </div>
                         
-                        <div id="chartPlaceholder" class="text-center text-muted small p-5">
+                        <div id="chartPlaceholder" class="text-center text-muted small p-5 flex-shrink-0">
                             <i class="bi bi-graph-up" style="font-size: 3rem; opacity: 0.3;"></i>
                             <p class="mt-3">Ejecuta una consulta SQL para comenzar</p>
                         </div>
                         
-                        <div id="chartContainer" class="flex-grow-1 d-none" style="position: relative; min-height: 250px;">
+                        <div id="chartContainer" class="flex-grow-1 d-none" style="position: relative; min-height: 0;">
                             <canvas id="myChart"></canvas>
                         </div>
                     </div>
@@ -963,9 +963,9 @@
             
             <!-- Módulo 7: Galería de Gráficos Guardados -->
             <div class="draggable-module" draggable="false" data-module-id="galeria-graficos" data-module-name="Galería Gráficos" data-module-icon="bi-images" style="left: 1160px; top: 1010px; width: 450px; height: 450px;">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
                             <h5 class="card-title mb-0"><i class="bi bi-images"></i> Gráficos Guardados</h5>
                             <div class="d-flex gap-2 align-items-center">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('galeria-graficos')" title="Minimizar">
@@ -978,12 +978,12 @@
                             </div>
                         </div>
                         
-                        <div class="alert alert-info small mb-3">
+                        <div class="alert alert-info small mb-3 flex-shrink-0">
                             <i class="bi bi-info-circle"></i> Gráficos guardados en el servidor
                             <span id="chartsCount" class="badge bg-primary ms-2">0</span>
                         </div>
                         
-                        <div id="savedChartsList" class="flex-grow-1 overflow-auto">
+                        <div id="savedChartsList" class="flex-grow-1 overflow-auto" style="min-height: 0;">
                             <div class="text-center text-muted p-4">
                                 <i class="bi bi-image" style="font-size: 2rem; opacity: 0.3;"></i>
                                 <p class="small mt-2">No hay gráficos guardados</p>
@@ -999,9 +999,9 @@
             
             <!-- Módulo 8: Personalizador Visual -->
             <div class="draggable-module" draggable="false" data-module-id="personalizador" data-module-name="Personalizar" data-module-icon="bi-palette" style="left: 20px; top: 1530px; width: 550px; height: 600px;">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
                             <h5 class="card-title mb-0"><i class="bi bi-palette"></i> Personalizar Estilos</h5>
                             <div class="d-flex gap-2 align-items-center">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('personalizador')" title="Minimizar">
@@ -1014,7 +1014,7 @@
                             </div>
                         </div>
                         
-                        <div class="flex-grow-1 overflow-auto">
+                        <div class="flex-grow-1 overflow-auto" style="min-height: 0;">
                             <!-- Paleta de Colores -->
                             <div class="mb-4">
                                 <h6 class="text-muted mb-3"><i class="bi bi-paint-bucket"></i> Paleta de Colores</h6>
@@ -1150,7 +1150,7 @@
                             </div>
                         </div>
                         
-                        <div class="mt-3 d-flex gap-2">
+                        <div class="mt-3 d-flex gap-2 flex-shrink-0">
                             <button class="btn btn-success flex-grow-1" onclick="saveCustomStyles()">
                                 <i class="bi bi-save"></i> Guardar Tema
                             </button>
@@ -1168,9 +1168,9 @@
             
             <!-- Módulo 9: Galería de Imágenes -->
             <div class="draggable-module" draggable="false" data-module-id="galeria-imagenes" data-module-name="Galería Imágenes" data-module-icon="bi-card-image" style="left: 590px; top: 1530px; width: 600px; height: 600px;">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
                             <h5 class="card-title mb-0"><i class="bi bi-images"></i> Galería de Imágenes</h5>
                             <div class="d-flex gap-2 align-items-center">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('galeria-imagenes')" title="Minimizar">
@@ -1181,7 +1181,7 @@
                         </div>
                         
                         <!-- Controles de vista -->
-                        <div class="mb-3 d-flex gap-2 align-items-center">
+                        <div class="mb-3 d-flex gap-2 align-items-center flex-shrink-0">
                             <label class="form-label small mb-0 fw-semibold">Tamaño:</label>
                             <select class="form-select form-select-sm" id="imageSize" onchange="updateImageSize(this.value)" style="max-width: 150px;">
                                 <option value="100">Pequeño</option>
@@ -1193,7 +1193,7 @@
                         </div>
                         
                         <!-- Contenedor de imágenes con scroll -->
-                        <div class="flex-grow-1" style="overflow-y: auto;">
+                        <div class="flex-grow-1 overflow-auto" style="min-height: 0;">
                             <div id="imageGallery" class="row row-cols-auto g-2">
                                 <div class="col-12 text-center text-muted p-4">
                                     <i class="bi bi-images" style="font-size: 3rem; opacity: 0.3;"></i>
@@ -1243,9 +1243,9 @@
             
             <!-- Módulo 11: Resultados SQL -->
             <div class="draggable-module" draggable="false" data-module-id="resultados" data-module-name="Resultados SQL" data-module-icon="bi-table" style="left: 1420px; top: 30px; width: 900px; height: 650px;">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body d-flex flex-column p-0">
-                        <div class="d-flex justify-content-between align-items-center mb-0 p-3 border-bottom">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column p-0" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-0 p-3 border-bottom flex-shrink-0">
                             <h5 class="card-title mb-0"><i class="bi bi-table"></i> Resultados SQL</h5>
                             <div class="d-flex gap-2 align-items-center">
                                 <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('resultados')" title="Minimizar">
@@ -1256,7 +1256,7 @@
                         </div>
                         
                         <!-- Contenedor de resultados con scroll -->
-                        <div class="flex-grow-1 p-3" style="overflow: auto;">
+                        <div class="flex-grow-1 p-3 overflow-auto" style="min-height: 0;">
                             <div id="results">
                                 <div class="text-center text-muted p-5">
                                     <i class="bi bi-play-circle" style="font-size: 4rem; opacity: 0.2;"></i>
