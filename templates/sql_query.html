@@ -557,6 +557,15 @@
                                 <label class="form-label small"># Productos</label>
                                 <input type="number" class="form-control" id="numProductsInput" placeholder="50" value="50" min="1">
                             </div>
+                            <div class="col-md-3">
+                                <label class="form-label small d-block">&nbsp;</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="showBrowserInput" checked>
+                                    <label class="form-check-label small" for="showBrowserInput">
+                                        <i class="bi bi-eye"></i> Mostrar navegador
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <div class="row g-3 mb-3">
                             <div class="col-12">
@@ -2224,6 +2233,7 @@ FROM (
             const platform = document.getElementById('platformSelect').value;
             const searchTerm = document.getElementById('searchTermInput').value.trim();
             const numProducts = parseInt(document.getElementById('numProductsInput').value) || 50;
+            const showBrowser = document.getElementById('showBrowserInput').checked;
             const statusDiv = document.getElementById('scraperStatus');
             const scrapeBtn = document.getElementById('scrapeBtn');
             const progressContainer = document.getElementById('progressContainer');
@@ -2268,7 +2278,8 @@ FROM (
                     body: JSON.stringify({ 
                         platform: platform,
                         search_term: searchTerm,
-                        num_products: numProducts
+                        num_products: numProducts,
+                        headless: !showBrowser  // Invertido: checked=mostrar=headless:false
                     })
                 });
                 
