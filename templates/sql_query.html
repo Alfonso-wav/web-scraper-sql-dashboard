@@ -748,19 +748,24 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="text-muted small"><i class="bi bi-lightning"></i> Cláusulas SQL</div>
-                                <button class="btn btn-sm btn-success" onclick="showAddCustomButtonDialog()" title="Añadir botón personalizado">
-                                    <i class="bi bi-plus-circle"></i> Añadir
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="restoreDefaultButtons()" title="Restaurar botones eliminados">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-success" onclick="showAddCustomButtonDialog()" title="Añadir botón personalizado">
+                                        <i class="bi bi-plus-circle"></i> Añadir
+                                    </button>
+                                </div>
                             </div>
                             <div id="sqlButtonsContainer" class="d-flex flex-wrap gap-1">
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('SELECT ')">SELECT</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('FROM ')">FROM</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('WHERE ')">WHERE</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('AND ')">AND</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('OR ')">OR</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('JOIN ')">JOIN</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('COUNT(*)')">COUNT</button>
-                                <button class="btn btn-sm btn-outline-secondary sql-btn" onclick="insertAtCursor('LIMIT ')">LIMIT</button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="select" onclick="insertAtCursor('SELECT ')">SELECT <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="from" onclick="insertAtCursor('FROM ')">FROM <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="where" onclick="insertAtCursor('WHERE ')">WHERE <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="and" onclick="insertAtCursor('AND ')">AND <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="or" onclick="insertAtCursor('OR ')">OR <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="join" onclick="insertAtCursor('JOIN ')">JOIN <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="count" onclick="insertAtCursor('COUNT(*)')">COUNT <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="limit" onclick="insertAtCursor('LIMIT ')">LIMIT <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
                             </div>
                         </div>
                         
@@ -1353,6 +1358,7 @@
             setupAutocomplete();
             initializeDragAndDrop();
             loadCustomSQLButtons(); // Cargar botones SQL personalizados
+            loadHiddenDefaultButtons(); // Cargar botones SQL ocultos
         });
         
         // ========== DRAG AND DROP CON POSICIONAMIENTO LIBRE ==========
@@ -2132,6 +2138,50 @@
                 element.closest('.custom-sql-btn').remove();
                 saveCustomSQLButtons();
             }
+        }
+        
+        function removeDefaultButton(element, event) {
+            event.stopPropagation();
+            const button = element.closest('.default-sql-btn');
+            const btnId = button.getAttribute('data-btn-id');
+            
+            if (confirm('¿Ocultar este botón? (Puedes restaurarlo con el botón ⟲)')) {
+                button.style.display = 'none';
+                saveHiddenDefaultButtons(btnId);
+            }
+        }
+        
+        function saveHiddenDefaultButtons(btnId) {
+            let hiddenButtons = JSON.parse(localStorage.getItem('hiddenSQLButtons') || '[]');
+            if (!hiddenButtons.includes(btnId)) {
+                hiddenButtons.push(btnId);
+                localStorage.setItem('hiddenSQLButtons', JSON.stringify(hiddenButtons));
+            }
+        }
+        
+        function loadHiddenDefaultButtons() {
+            const hiddenButtons = JSON.parse(localStorage.getItem('hiddenSQLButtons') || '[]');
+            hiddenButtons.forEach(btnId => {
+                const button = document.querySelector(`.default-sql-btn[data-btn-id="${btnId}"]`);
+                if (button) {
+                    button.style.display = 'none';
+                }
+            });
+        }
+        
+        function restoreDefaultButtons() {
+            const buttons = document.querySelectorAll('.default-sql-btn');
+            buttons.forEach(btn => btn.style.display = '');
+            localStorage.removeItem('hiddenSQLButtons');
+            
+            // Mostrar mensaje de confirmación
+            const container = document.getElementById('sqlButtonsContainer');
+            const msg = document.createElement('div');
+            msg.className = 'alert alert-success py-1 px-2 m-0';
+            msg.style.fontSize = '0.75rem';
+            msg.textContent = '✓ Botones restaurados';
+            container.parentElement.appendChild(msg);
+            setTimeout(() => msg.remove(), 2000);
         }
         
         function showColumnInfo(columnName, frequency) {
