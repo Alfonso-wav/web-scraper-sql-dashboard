@@ -187,8 +187,14 @@ def get_columns_by_table():
 @app.route('/')
 def index():
     """Página principal"""
+    # Importar configuración de módulos
+    from templates.modules_config import MODULES
+    
     common_columns = get_most_common_columns()
-    return render_template('sql_query.html', sample_queries=SAMPLE_QUERIES, common_columns=common_columns)
+    return render_template('sql_query.html', 
+                         sample_queries=SAMPLE_QUERIES, 
+                         common_columns=common_columns,
+                         modules=MODULES)
 
 
 @app.route('/execute', methods=['POST'])
