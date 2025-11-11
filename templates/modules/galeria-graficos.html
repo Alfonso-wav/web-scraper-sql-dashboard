@@ -1,0 +1,35 @@
+<!-- Módulo: Galería Gráficos -->
+<div class="draggable-module" draggable="false" data-module-id="galeria-graficos" data-module-name="Galería Gráficos" data-module-icon="bi-images" style="left: 1160px; top: 1010px; width: 450px; height: 450px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-images"></i> Gráficos Guardados</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('galeria-graficos')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadSavedCharts()" title="Recargar">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info small mb-3 flex-shrink-0">
+                            <i class="bi bi-info-circle"></i> Gráficos guardados en el servidor
+                            <span id="chartsCount" class="badge bg-primary ms-2">0</span>
+                        </div>
+                        
+                        <div id="savedChartsList" class="flex-grow-1 overflow-auto" style="min-height: 0;">
+                            <div class="text-center text-muted p-4">
+                                <i class="bi bi-image" style="font-size: 2rem; opacity: 0.3;"></i>
+                                <p class="small mt-2">No hay gráficos guardados</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>

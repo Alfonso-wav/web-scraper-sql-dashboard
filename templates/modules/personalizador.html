@@ -1,0 +1,168 @@
+<!-- Módulo: Personalizar -->
+<div class="draggable-module" draggable="false" data-module-id="personalizador" data-module-name="Personalizar" data-module-icon="bi-palette" style="left: 20px; top: 1530px; width: 550px; height: 600px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-palette"></i> Personalizar Estilos</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('personalizador')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="resetStyles()" title="Restaurar defaults">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow-1 overflow-auto" style="min-height: 0;">
+                            <!-- Paleta de Colores -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="bi bi-paint-bucket"></i> Paleta de Colores</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color Principal</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="primaryColor" value="#667eea" onchange="applyPrimaryColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="primaryColorText" value="#667eea" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color Secundario</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="secondaryColor" value="#764ba2" onchange="applySecondaryColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="secondaryColorText" value="#764ba2" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Fondo</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="bgColor" value="#f8f9fa" onchange="applyBgColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="bgColorText" value="#f8f9fa" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Tipografía -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="bi bi-fonts"></i> Tipografía</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Fuente Principal</label>
+                                    <select class="form-select form-select-sm" id="mainFont" onchange="applyMainFont(this.value)">
+                                        <option value="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" selected>Sistema (Default)</option>
+                                        <option value="'Arial', sans-serif">Arial</option>
+                                        <option value="'Helvetica', sans-serif">Helvetica</option>
+                                        <option value="'Georgia', serif">Georgia</option>
+                                        <option value="'Times New Roman', serif">Times New Roman</option>
+                                        <option value="'Courier New', monospace">Courier New</option>
+                                        <option value="'Verdana', sans-serif">Verdana</option>
+                                        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                                        <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                                        <option value="'Impact', fantasy">Impact</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Tamaño de Texto</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="range" class="form-range" id="fontSize" min="12" max="20" value="16" step="1" onchange="applyFontSize(this.value)">
+                                        <span class="badge bg-secondary" id="fontSizeValue">16px</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Colores de Texto -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="bi bi-type"></i> Colores de Texto</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Títulos</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="headingColor" value="#212529" onchange="applyHeadingColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="headingColorText" value="#212529" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Texto Normal</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="textColor" value="#212529" onchange="applyTextColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="textColorText" value="#212529" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Estilo de Módulos -->
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-3"><i class="bi bi-grid-3x3"></i> Estilo de Módulos</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Borde de Tarjetas</label>
+                                    <select class="form-select form-select-sm" id="cardBorder" onchange="applyCardBorder(this.value)">
+                                        <option value="none" selected>Sin borde</option>
+                                        <option value="1px solid #dee2e6">Fino</option>
+                                        <option value="2px solid #dee2e6">Medio</option>
+                                        <option value="3px solid #667eea">Grueso (Color principal)</option>
+                                        <option value="custom">Personalizado</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Borde de Tarjetas</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="cardBorderColor" value="#dee2e6" onchange="applyCardBorderColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="cardBorderColorText" value="#dee2e6" style="max-width: 100px;">
+                                    </div>
+                                    <small class="text-muted">Para bordes personalizados, selecciona "Personalizado" arriba</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Grosor de Borde</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="range" class="form-range" id="borderWidth" min="0" max="5" value="1" step="1" onchange="applyBorderWidth(this.value)">
+                                        <span class="badge bg-secondary" id="borderWidthValue">1px</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Radio de Bordes</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="range" class="form-range" id="borderRadius" min="0" max="20" value="6" step="2" onchange="applyBorderRadius(this.value)">
+                                        <span class="badge bg-secondary" id="borderRadiusValue">6px</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Fondo de Tarjetas</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="cardBgColor" value="#ffffff" onchange="applyCardBgColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="cardBgColorText" value="#ffffff" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 d-flex gap-2 flex-shrink-0">
+                            <button class="btn btn-success flex-grow-1" onclick="saveCustomStyles()">
+                                <i class="bi bi-save"></i> Guardar Tema
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="exportStyles()">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>

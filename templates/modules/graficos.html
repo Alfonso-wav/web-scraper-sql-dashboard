@@ -1,0 +1,78 @@
+<!-- Módulo: Gráficos -->
+<div class="draggable-module" draggable="false" data-module-id="graficos" data-module-name="Gráficos" data-module-icon="bi-bar-chart-fill" style="left: 20px; top: 1010px; width: 600px; height: 500px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-bar-chart-fill"></i> Generador de Gráficos</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('graficos')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div id="chartConfigSection" class="d-none flex-shrink-0">
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-info-circle"></i> Ejecuta una consulta primero para generar gráficos
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Tipo de Gráfico</label>
+                                <select class="form-select form-select-sm" id="chartType">
+                                    <option value="bar">Barras</option>
+                                    <option value="line">Líneas</option>
+                                    <option value="pie">Pastel</option>
+                                    <option value="doughnut">Dona</option>
+                                    <option value="radar">Radar</option>
+                                    <option value="polarArea">Área Polar</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Eje X (Etiquetas)</label>
+                                <select class="form-select form-select-sm" id="chartLabelColumn">
+                                    <option value="">-- Selecciona columna --</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Eje Y (Valores)</label>
+                                <select class="form-select form-select-sm" id="chartDataColumn">
+                                    <option value="">-- Selecciona columna --</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Título del Gráfico</label>
+                                <input type="text" class="form-control form-control-sm" id="chartTitle" placeholder="Mi Gráfico">
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary btn-sm flex-grow-1" onclick="generateChart()">
+                                    <i class="bi bi-graph-up"></i> Generar
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="showSaveChartModal()" id="saveChartBtn" disabled>
+                                    <i class="bi bi-download"></i> Guardar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="clearChart()">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="chartPlaceholder" class="text-center text-muted small p-5 flex-shrink-0">
+                            <i class="bi bi-graph-up" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p class="mt-3">Ejecuta una consulta SQL para comenzar</p>
+                        </div>
+                        
+                        <div id="chartContainer" class="flex-grow-1 d-none" style="position: relative; min-height: 0;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>

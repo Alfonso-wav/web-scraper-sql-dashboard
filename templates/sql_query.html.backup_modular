@@ -526,11 +526,802 @@
             <!-- Contenedor interno para módulos (tamaño expandible) -->
             <div id="modulesGrid" style="position: relative; min-width: 1200px; min-height: 1200px;">
             
-            <!-- Módulos cargados dinámicamente -->
-            {% for module_id in modules %}
-                {% include 'modules/' + module_id + '.html' %}
-            {% endfor %}
-
+            <!-- Módulo 0: Scraper de Amazon -->
+            <div class="draggable-module" draggable="false" data-module-id="scraper" data-module-name="Scraper" data-module-icon="bi-search" style="left: 20px; top: 20px; width: 600px; height: 500px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-search"></i> Scraper Multi-Plataforma</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('scraper')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Formulario de scraping -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small">Plataforma</label>
+                                <select class="form-select" id="platformSelect">
+                                    <option value="amazon">🛒 Amazon</option>
+                                    <option value="corte_ingles">🏬 El Corte Inglés</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Término de búsqueda</label>
+                                <input type="text" class="form-control" id="searchTermInput" placeholder="Introduce término de búsqueda (ej: auriculares gaming, cafe organico...)">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small"># Productos</label>
+                                <input type="number" class="form-control" id="numProductsInput" placeholder="50" value="50" min="1">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small d-block">&nbsp;</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="showBrowserInput" checked>
+                                    <label class="form-check-label small" for="showBrowserInput">
+                                        <i class="bi bi-eye"></i> Mostrar navegador
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <button class="btn btn-success w-100" onclick="startScraping()" id="scrapeBtn"><i class="bi bi-rocket"></i> Iniciar Scraping</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Contenedor de progreso -->
+                        <div class="d-none" id="progressContainer" style="overflow-y: auto;">
+                            <!-- Paso 1: Scraping -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step1">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>1️⃣ Scraping de productos en Amazon</div>
+                                        <div id="progress1-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress1-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress1-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Paso 2: JSON -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>2️⃣ Creación de archivo JSON</div>
+                                        <div id="progress2-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress2-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress2-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Paso 3: PostgreSQL -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>3️⃣ Subida a PostgreSQL</div>
+                                        <div id="progress3-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress3-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress3-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Paso 4: Finalizar -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step4">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>4️⃣ Finalizando proceso</div>
+                                        <div id="progress4-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress4-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress4-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Botón de recarga -->
+                            <button class="btn btn-info d-none" id="reloadBtn" onclick="window.location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> Recargar página para ver la nueva tabla
+                            </button>
+                        </div>
+                        
+                        <div id="scraperStatus" class="d-none"></div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 1: Columnas más Comunes -->
+            <div class="draggable-module" draggable="false" data-module-id="columnas" data-module-name="Columnas" data-module-icon="bi-columns" style="left: 640px; top: 20px; width: 450px; height: 500px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-columns"></i> Columnas más Comunes</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('columnas')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Filtro de tablas -->
+                        <div class="mb-3 flex-shrink-0">
+                            <div class="dropdown w-100">
+                                <button class="btn btn-outline-secondary btn-sm w-100 dropdown-toggle" type="button" id="tableFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-funnel"></i> Filtrar por tabla (<span id="selectedTablesCount">Todas</span>)
+                                </button>
+                                <div class="dropdown-menu w-100 p-3" aria-labelledby="tableFilterDropdown" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="mb-2">
+                                        <button class="btn btn-link btn-sm p-0" onclick="selectAllTables()">Seleccionar todas</button>
+                                        <span class="mx-1">|</span>
+                                        <button class="btn btn-link btn-sm p-0" onclick="clearAllTables()">Limpiar</button>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div id="tableFilterList">
+                                        <!-- Se llenará dinámicamente -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="small text-muted mb-3 flex-shrink-0">Click para insertar en el cursor</p>
+                        <div class="flex-grow-1 overflow-auto" id="columnsListContainer" style="min-height: 0;">
+                            {% for column in common_columns %}
+                            <div class="list-group-item list-group-item-action clickable border-start border-3 border-primary mb-2" onclick="insertAtCursor('{{ column.name }}')">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-primary">{{ column.name }}</span>
+                                    <span class="badge bg-light text-dark">{{ column.frequency }} tablas</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not common_columns %}
+                            <div class="text-muted small p-3">
+                                No hay columnas disponibles. Scrape algunos productos primero.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 2: Vistas Guardadas -->
+            <div class="draggable-module" draggable="false" data-module-id="vistas" data-module-name="Vistas" data-module-icon="bi-eye" style="left: 1110px; top: 20px; width: 400px; height: 500px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-eye"></i> Vistas Guardadas</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('vistas')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        <p class="small text-muted mb-3 flex-shrink-0">Click para usar en consulta</p>
+                        <div class="flex-grow-1 overflow-auto" id="viewsList" style="min-height: 0;">
+                            <div class="text-muted small p-3">
+                                Cargando vistas...
+                            </div>
+                        </div>
+                        <button class="btn btn-primary w-100 mt-3 flex-shrink-0" onclick="showCreateViewDialog()">
+                            <i class="bi bi-plus-circle"></i> Crear Nueva Vista
+                        </button>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 3: Editor SQL -->
+            <div class="draggable-module" draggable="false" data-module-id="editor" data-module-name="Editor SQL" data-module-icon="bi-code-slash" style="left: 20px; top: 540px; width: 700px; height: 450px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="queryInput" class="form-label mb-0 d-flex align-items-center gap-2">
+                                    <span><i class="bi bi-code-slash"></i> Editor SQL</span>
+                                    <span class="badge bg-info">PostgreSQL</span>
+                                </label>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('editor')" title="Minimizar">
+                                        <i class="bi bi-dash-lg"></i>
+                                    </button>
+                                    <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="text-muted small"><i class="bi bi-lightning"></i> Cláusulas SQL</div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="restoreDefaultButtons()" title="Restaurar botones eliminados">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-success" onclick="showAddCustomButtonDialog()" title="Añadir botón personalizado">
+                                        <i class="bi bi-plus-circle"></i> Añadir
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="sqlButtonsContainer" class="d-flex flex-wrap gap-1">
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="select" onclick="insertAtCursor('SELECT ')">SELECT <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="from" onclick="insertAtCursor('FROM ')">FROM <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="where" onclick="insertAtCursor('WHERE ')">WHERE <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="and" onclick="insertAtCursor('AND ')">AND <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="or" onclick="insertAtCursor('OR ')">OR <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="join" onclick="insertAtCursor('JOIN ')">JOIN <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="count" onclick="insertAtCursor('COUNT(*)')">COUNT <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                                <button class="btn btn-sm btn-outline-secondary sql-btn default-sql-btn" data-btn-id="limit" onclick="insertAtCursor('LIMIT ')">LIMIT <span class="text-danger" style="font-size: 0.7em; cursor: pointer;" onclick="removeDefaultButton(this, event)">×</span></button>
+                            </div>
+                        </div>
+                        
+                        <div class="position-relative flex-grow-1 mb-3">
+                            <textarea class="form-control font-monospace h-100" id="queryInput" placeholder="Escribe tu consulta SQL aquí...&#10;&#10;Ejemplo:&#10;SELECT * FROM products LIMIT 10;"></textarea>
+                            <div id="autocompleteSuggestions" class="autocomplete-suggestions list-group"></div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success flex-grow-1" onclick="executeQuery()">
+                                <i class="bi bi-play-fill"></i> Ejecutar
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearQuery()">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 4: Tablas Disponibles -->
+            <div class="draggable-module" draggable="false" data-module-id="tablas" data-module-name="Tablas" data-module-icon="bi-table" style="left: 740px; top: 540px; width: 450px; height: 450px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-table"></i> Tablas Disponibles</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('tablas')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 overflow-auto" id="tablesContainer" style="min-height: 0;">
+                            <div class="text-muted small p-3">
+                                Cargando tablas...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 5: Generador de Gráficos -->
+            <div class="draggable-module" draggable="false" data-module-id="graficos" data-module-name="Gráficos" data-module-icon="bi-bar-chart-fill" style="left: 20px; top: 1010px; width: 600px; height: 500px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-bar-chart-fill"></i> Generador de Gráficos</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('graficos')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div id="chartConfigSection" class="d-none flex-shrink-0">
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-info-circle"></i> Ejecuta una consulta primero para generar gráficos
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Tipo de Gráfico</label>
+                                <select class="form-select form-select-sm" id="chartType">
+                                    <option value="bar">Barras</option>
+                                    <option value="line">Líneas</option>
+                                    <option value="pie">Pastel</option>
+                                    <option value="doughnut">Dona</option>
+                                    <option value="radar">Radar</option>
+                                    <option value="polarArea">Área Polar</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Eje X (Etiquetas)</label>
+                                <select class="form-select form-select-sm" id="chartLabelColumn">
+                                    <option value="">-- Selecciona columna --</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Eje Y (Valores)</label>
+                                <select class="form-select form-select-sm" id="chartDataColumn">
+                                    <option value="">-- Selecciona columna --</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Título del Gráfico</label>
+                                <input type="text" class="form-control form-control-sm" id="chartTitle" placeholder="Mi Gráfico">
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary btn-sm flex-grow-1" onclick="generateChart()">
+                                    <i class="bi bi-graph-up"></i> Generar
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="showSaveChartModal()" id="saveChartBtn" disabled>
+                                    <i class="bi bi-download"></i> Guardar
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="clearChart()">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="chartPlaceholder" class="text-center text-muted small p-5 flex-shrink-0">
+                            <i class="bi bi-graph-up" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p class="mt-3">Ejecuta una consulta SQL para comenzar</p>
+                        </div>
+                        
+                        <div id="chartContainer" class="flex-grow-1 d-none" style="position: relative; min-height: 0;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 6: Conversor de Tipos de Datos -->
+            <div class="draggable-module" draggable="false" data-module-id="conversor" data-module-name="Conversor" data-module-icon="bi-shuffle" style="left: 640px; top: 1010px; width: 500px; height: 450px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-shuffle"></i> Conversor de Tipos</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('conversor')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Columna a convertir</label>
+                            <select class="form-select form-select-sm" id="columnToConvert" onchange="updateConversionPreview()">
+                                <option value="">-- Selecciona una columna --</option>
+                            </select>
+                            <small class="text-muted">Columnas que aparecen en 2 o más tablas</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Nombre de la nueva columna</label>
+                            <input type="text" class="form-control form-control-sm" id="newColumnName" placeholder="Ej: price_numeric">
+                            <small class="text-muted">La columna original se mantendrá sin cambios</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Tipo de dato destino</label>
+                            <select class="form-select form-select-sm" id="targetDataType">
+                                <option value="NUMERIC">NUMERIC (decimales)</option>
+                                <option value="INTEGER">INTEGER (enteros)</option>
+                                <option value="DOUBLE PRECISION">DOUBLE PRECISION (decimales precisos)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="conversionPreview" class="mb-3 d-none">
+                            <label class="form-label small fw-bold">Vista previa de transformación</label>
+                            <div class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">
+                                <div id="previewContent" class="small font-monospace"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="affectedTables" class="mb-3">
+                            <label class="form-label small fw-bold">Tablas afectadas: <span id="tablesCount" class="badge bg-secondary">0</span></label>
+                            <div class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
+                                <div id="tablesList" class="small">
+                                    <span class="text-muted">Selecciona una columna primero</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-success w-100" id="convertButton" onclick="convertColumnType()" disabled>
+                            <i class="bi bi-plus-circle"></i> Crear Columna Convertida
+                        </button>
+                        
+                        <div id="conversionProgress" class="mt-3 d-none">
+                            <div class="progress mb-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" id="conversionProgressBar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted" id="conversionStatus">Procesando...</small>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 7: Galería de Gráficos Guardados -->
+            <div class="draggable-module" draggable="false" data-module-id="galeria-graficos" data-module-name="Galería Gráficos" data-module-icon="bi-images" style="left: 1160px; top: 1010px; width: 450px; height: 450px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-images"></i> Gráficos Guardados</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('galeria-graficos')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadSavedCharts()" title="Recargar">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info small mb-3 flex-shrink-0">
+                            <i class="bi bi-info-circle"></i> Gráficos guardados en el servidor
+                            <span id="chartsCount" class="badge bg-primary ms-2">0</span>
+                        </div>
+                        
+                        <div id="savedChartsList" class="flex-grow-1 overflow-auto" style="min-height: 0;">
+                            <div class="text-center text-muted p-4">
+                                <i class="bi bi-image" style="font-size: 2rem; opacity: 0.3;"></i>
+                                <p class="small mt-2">No hay gráficos guardados</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 8: Personalizador Visual -->
+            <div class="draggable-module" draggable="false" data-module-id="personalizador" data-module-name="Personalizar" data-module-icon="bi-palette" style="left: 20px; top: 1530px; width: 550px; height: 600px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-palette"></i> Personalizar Estilos</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('personalizador')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="resetStyles()" title="Restaurar defaults">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow-1 overflow-auto" style="min-height: 0;">
+                            <!-- Paleta de Colores -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="bi bi-paint-bucket"></i> Paleta de Colores</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color Principal</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="primaryColor" value="#667eea" onchange="applyPrimaryColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="primaryColorText" value="#667eea" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color Secundario</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="secondaryColor" value="#764ba2" onchange="applySecondaryColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="secondaryColorText" value="#764ba2" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Fondo</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="bgColor" value="#f8f9fa" onchange="applyBgColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="bgColorText" value="#f8f9fa" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Tipografía -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="bi bi-fonts"></i> Tipografía</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Fuente Principal</label>
+                                    <select class="form-select form-select-sm" id="mainFont" onchange="applyMainFont(this.value)">
+                                        <option value="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" selected>Sistema (Default)</option>
+                                        <option value="'Arial', sans-serif">Arial</option>
+                                        <option value="'Helvetica', sans-serif">Helvetica</option>
+                                        <option value="'Georgia', serif">Georgia</option>
+                                        <option value="'Times New Roman', serif">Times New Roman</option>
+                                        <option value="'Courier New', monospace">Courier New</option>
+                                        <option value="'Verdana', sans-serif">Verdana</option>
+                                        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                                        <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                                        <option value="'Impact', fantasy">Impact</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Tamaño de Texto</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="range" class="form-range" id="fontSize" min="12" max="20" value="16" step="1" onchange="applyFontSize(this.value)">
+                                        <span class="badge bg-secondary" id="fontSizeValue">16px</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Colores de Texto -->
+                            <div class="mb-4">
+                                <h6 class="text-muted mb-3"><i class="bi bi-type"></i> Colores de Texto</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Títulos</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="headingColor" value="#212529" onchange="applyHeadingColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="headingColorText" value="#212529" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Texto Normal</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="textColor" value="#212529" onchange="applyTextColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="textColorText" value="#212529" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <!-- Estilo de Módulos -->
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-3"><i class="bi bi-grid-3x3"></i> Estilo de Módulos</h6>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Borde de Tarjetas</label>
+                                    <select class="form-select form-select-sm" id="cardBorder" onchange="applyCardBorder(this.value)">
+                                        <option value="none" selected>Sin borde</option>
+                                        <option value="1px solid #dee2e6">Fino</option>
+                                        <option value="2px solid #dee2e6">Medio</option>
+                                        <option value="3px solid #667eea">Grueso (Color principal)</option>
+                                        <option value="custom">Personalizado</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Borde de Tarjetas</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="cardBorderColor" value="#dee2e6" onchange="applyCardBorderColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="cardBorderColorText" value="#dee2e6" style="max-width: 100px;">
+                                    </div>
+                                    <small class="text-muted">Para bordes personalizados, selecciona "Personalizado" arriba</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Grosor de Borde</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="range" class="form-range" id="borderWidth" min="0" max="5" value="1" step="1" onchange="applyBorderWidth(this.value)">
+                                        <span class="badge bg-secondary" id="borderWidthValue">1px</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Radio de Bordes</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="range" class="form-range" id="borderRadius" min="0" max="20" value="6" step="2" onchange="applyBorderRadius(this.value)">
+                                        <span class="badge bg-secondary" id="borderRadiusValue">6px</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Color de Fondo de Tarjetas</label>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <input type="color" class="form-control form-control-color" id="cardBgColor" value="#ffffff" onchange="applyCardBgColor(this.value)">
+                                        <input type="text" class="form-control form-control-sm font-monospace" id="cardBgColorText" value="#ffffff" style="max-width: 100px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 d-flex gap-2 flex-shrink-0">
+                            <button class="btn btn-success flex-grow-1" onclick="saveCustomStyles()">
+                                <i class="bi bi-save"></i> Guardar Tema
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="exportStyles()">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 9: Galería de Imágenes -->
+            <div class="draggable-module" draggable="false" data-module-id="galeria-imagenes" data-module-name="Galería Imágenes" data-module-icon="bi-card-image" style="left: 590px; top: 1530px; width: 600px; height: 600px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-images"></i> Galería de Imágenes</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('galeria-imagenes')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Controles de vista -->
+                        <div class="mb-3 d-flex gap-2 align-items-center flex-shrink-0">
+                            <label class="form-label small mb-0 fw-semibold">Tamaño:</label>
+                            <select class="form-select form-select-sm" id="imageSize" onchange="updateImageSize(this.value)" style="max-width: 150px;">
+                                <option value="100">Pequeño</option>
+                                <option value="150" selected>Mediano</option>
+                                <option value="200">Grande</option>
+                                <option value="250">Muy Grande</option>
+                            </select>
+                            <span class="badge bg-info" id="imageCount">0 imágenes</span>
+                        </div>
+                        
+                        <!-- Contenedor de imágenes con scroll -->
+                        <div class="flex-grow-1 overflow-auto" style="min-height: 0;">
+                            <div id="imageGallery" class="row row-cols-auto g-2">
+                                <div class="col-12 text-center text-muted p-4">
+                                    <i class="bi bi-images" style="font-size: 3rem; opacity: 0.3;"></i>
+                                    <p class="mt-2">Las imágenes aparecerán aquí cuando ejecutes una consulta SQL que contenga URLs de imágenes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 10: Visualizador de Imágenes (Canvas) -->
+            <div class="draggable-module" draggable="false" data-module-id="visualizador" data-module-name="Visualizador" data-module-icon="bi-easel" style="left: 600px; top: 1530px; width: 800px; height: 600px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column p-0">
+                        <div class="d-flex justify-content-between align-items-center mb-0 p-3 border-bottom">
+                            <h5 class="card-title mb-0"><i class="bi bi-easel"></i> Visualizador de Imágenes</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-danger" onclick="clearImageBoard()" title="Limpiar todo">
+                                    <i class="bi bi-trash"></i> Limpiar
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('visualizador')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Canvas interno para imágenes -->
+                        <div id="imageBoard" class="flex-grow-1 position-relative" style="overflow: hidden; background: linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%, #f8f9fa), linear-gradient(45deg, #f8f9fa 25%, transparent 25%, transparent 75%, #f8f9fa 75%, #f8f9fa); background-size: 20px 20px; background-position: 0 0, 10px 10px;">
+                            <div class="position-absolute top-50 start-50 translate-middle text-center text-muted" id="imageBoardPlaceholder">
+                                <i class="bi bi-images" style="font-size: 4rem; opacity: 0.2;"></i>
+                                <p class="mt-3">Haz clic en una imagen de "Gráficos Guardados"<br>para agregarla al visualizador</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 11: Resultados SQL -->
+            <div class="draggable-module" draggable="false" data-module-id="resultados" data-module-name="Resultados SQL" data-module-icon="bi-table" style="left: 1420px; top: 30px; width: 900px; height: 650px;">
+                <div class="card shadow-sm h-100 d-flex flex-column">
+                    <div class="card-body d-flex flex-column p-0" style="min-height: 0;">
+                        <div class="d-flex justify-content-between align-items-center mb-0 p-3 border-bottom flex-shrink-0">
+                            <h5 class="card-title mb-0"><i class="bi bi-table"></i> Resultados SQL</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('resultados')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Contenedor de resultados con scroll -->
+                        <div class="flex-grow-1 p-3 overflow-auto" style="min-height: 0;">
+                            <div id="results">
+                                <div class="text-center text-muted p-5">
+                                    <i class="bi bi-play-circle" style="font-size: 4rem; opacity: 0.2;"></i>
+                                    <p class="mt-3">Ejecuta una consulta SQL para ver los resultados aquí</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            <!-- Módulo 12: Control de Canvas -->
+            <div class="draggable-module" draggable="false" data-module-id="canvas-control" data-module-name="Control Canvas" data-module-icon="bi-arrows-fullscreen" style="left: 30px; top: 1530px; width: 500px; height: 180px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-arrows-fullscreen"></i> Tamaño del Canvas</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('canvas-control')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Control del slider -->
+                        <div class="flex-grow-1 d-flex flex-column justify-content-center">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <span class="text-muted small" style="min-width: 50px;">Mínimo</span>
+                                <input type="range" class="form-range" id="canvasSizeSlider" 
+                                       min="800" max="2000" step="100" value="1200"
+                                       style="flex: 1;">
+                                <span class="text-muted small" style="min-width: 50px; text-align: right;">Máximo</span>
+                            </div>
+                            <div class="text-center">
+                                <span class="badge bg-primary fs-6" id="canvasSizeLabel">1200 x 1200</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
+            
+            </div><!-- fin modulesGrid -->
         </div><!-- fin workspaceCanvas -->
     </div>
     

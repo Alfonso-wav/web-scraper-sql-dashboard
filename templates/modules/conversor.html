@@ -1,0 +1,70 @@
+<!-- Módulo: Conversor -->
+<div class="draggable-module" draggable="false" data-module-id="conversor" data-module-name="Conversor" data-module-icon="bi-shuffle" style="left: 640px; top: 1010px; width: 500px; height: 450px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-shuffle"></i> Conversor de Tipos</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('conversor')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Columna a convertir</label>
+                            <select class="form-select form-select-sm" id="columnToConvert" onchange="updateConversionPreview()">
+                                <option value="">-- Selecciona una columna --</option>
+                            </select>
+                            <small class="text-muted">Columnas que aparecen en 2 o más tablas</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Nombre de la nueva columna</label>
+                            <input type="text" class="form-control form-control-sm" id="newColumnName" placeholder="Ej: price_numeric">
+                            <small class="text-muted">La columna original se mantendrá sin cambios</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Tipo de dato destino</label>
+                            <select class="form-select form-select-sm" id="targetDataType">
+                                <option value="NUMERIC">NUMERIC (decimales)</option>
+                                <option value="INTEGER">INTEGER (enteros)</option>
+                                <option value="DOUBLE PRECISION">DOUBLE PRECISION (decimales precisos)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="conversionPreview" class="mb-3 d-none">
+                            <label class="form-label small fw-bold">Vista previa de transformación</label>
+                            <div class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">
+                                <div id="previewContent" class="small font-monospace"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="affectedTables" class="mb-3">
+                            <label class="form-label small fw-bold">Tablas afectadas: <span id="tablesCount" class="badge bg-secondary">0</span></label>
+                            <div class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
+                                <div id="tablesList" class="small">
+                                    <span class="text-muted">Selecciona una columna primero</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-success w-100" id="convertButton" onclick="convertColumnType()" disabled>
+                            <i class="bi bi-plus-circle"></i> Crear Columna Convertida
+                        </button>
+                        
+                        <div id="conversionProgress" class="mt-3 d-none">
+                            <div class="progress mb-2">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" id="conversionProgressBar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted" id="conversionStatus">Procesando...</small>
+                        </div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>

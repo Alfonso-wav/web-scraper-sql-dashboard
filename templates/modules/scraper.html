@@ -1,0 +1,119 @@
+<!-- Módulo: Scraper -->
+<div class="draggable-module" draggable="false" data-module-id="scraper" data-module-name="Scraper" data-module-icon="bi-search" style="left: 20px; top: 20px; width: 600px; height: 500px;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="bi bi-search"></i> Scraper Multi-Plataforma</h5>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="minimizeModule('scraper')" title="Minimizar">
+                                    <i class="bi bi-dash-lg"></i>
+                                </button>
+                                <span class="drag-handle" title="Arrastra para mover"><i class="bi bi-grip-vertical"></i></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Formulario de scraping -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small">Plataforma</label>
+                                <select class="form-select" id="platformSelect">
+                                    <option value="amazon">🛒 Amazon</option>
+                                    <option value="corte_ingles">🏬 El Corte Inglés</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Término de búsqueda</label>
+                                <input type="text" class="form-control" id="searchTermInput" placeholder="Introduce término de búsqueda (ej: auriculares gaming, cafe organico...)">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small"># Productos</label>
+                                <input type="number" class="form-control" id="numProductsInput" placeholder="50" value="50" min="1">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small d-block">&nbsp;</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="showBrowserInput" checked>
+                                    <label class="form-check-label small" for="showBrowserInput">
+                                        <i class="bi bi-eye"></i> Mostrar navegador
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <button class="btn btn-success w-100" onclick="startScraping()" id="scrapeBtn"><i class="bi bi-rocket"></i> Iniciar Scraping</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Contenedor de progreso -->
+                        <div class="d-none" id="progressContainer" style="overflow-y: auto;">
+                            <!-- Paso 1: Scraping -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step1">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>1️⃣ Scraping de productos en Amazon</div>
+                                        <div id="progress1-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress1-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress1-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Paso 2: JSON -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>2️⃣ Creación de archivo JSON</div>
+                                        <div id="progress2-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress2-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress2-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Paso 3: PostgreSQL -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>3️⃣ Subida a PostgreSQL</div>
+                                        <div id="progress3-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress3-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress3-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Paso 4: Finalizar -->
+                            <div class="card mb-3 border-start border-4 border-secondary" id="step4">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>4️⃣ Finalizando proceso</div>
+                                        <div id="progress4-percent">0%</div>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-gradient" id="progress4-bar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted" id="progress4-msg">Esperando...</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Botón de recarga -->
+                            <button class="btn btn-info d-none" id="reloadBtn" onclick="window.location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> Recargar página para ver la nueva tabla
+                            </button>
+                        </div>
+                        
+                        <div id="scraperStatus" class="d-none"></div>
+                    </div>
+                </div>
+            <!-- Resize handles -->
+                <div class="resize-handle resize-right"></div>
+                <div class="resize-handle resize-bottom"></div>
+                <div class="resize-handle resize-corner"></div>
+            </div>
