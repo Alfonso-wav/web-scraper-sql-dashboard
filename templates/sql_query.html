@@ -67,6 +67,32 @@
             padding: 4px 10px;
         }
         
+        /* Estilos para tabla de resultados SQL - una línea por fila */
+        #results table tbody td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+            padding: 0.4rem 0.5rem !important;
+            vertical-align: middle;
+            line-height: 1.2;
+        }
+        
+        #results table thead th {
+            white-space: nowrap;
+            padding: 0.5rem 0.5rem !important;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+        
+        #results table tbody tr {
+            height: 2.2rem;
+        }
+        
+        #results table tbody td img {
+            vertical-align: middle;
+        }
+        
         .autocomplete-suggestions {
             position: absolute;
             max-height: 200px;
@@ -114,6 +140,10 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+        }
+        
+        .draggable-module .card {
+            border: none !important;
         }
         
         .draggable-module:hover {
@@ -165,13 +195,13 @@
         
         .resize-handle {
             position: absolute;
-            background: rgba(102, 126, 234, 0.3);
+            background: transparent;
             transition: background-color 0.2s;
             z-index: 10;
         }
         
         .resize-handle:hover {
-            background: rgba(102, 126, 234, 0.6);
+            background: rgba(102, 126, 234, 0.3);
         }
         
         .resize-right {
@@ -196,17 +226,12 @@
             width: 16px;
             height: 16px;
             cursor: nwse-resize;
-            background: rgba(102, 126, 234, 0.5);
+            background: transparent;
         }
         
         .resize-corner::after {
-            content: '⋰';
-            position: absolute;
-            right: 2px;
-            bottom: -2px;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
+            content: '';
+            display: none;
         }
         
         .resizing {
@@ -1676,15 +1701,15 @@ FROM (
                         } else {
                             if (value === null) value = '<em style="color: #999;">NULL</em>';
                             else if (typeof value === 'object') {
-                                // Limitar objetos JSON a 100 caracteres
+                                // Limitar objetos JSON a 50 caracteres
                                 let jsonStr = JSON.stringify(value);
-                                value = jsonStr.length > 100 ? jsonStr.substring(0, 100) + '...' : jsonStr;
+                                value = jsonStr.length > 50 ? `<span title="${jsonStr.replace(/"/g, '&quot;')}">${jsonStr.substring(0, 50)}...</span>` : jsonStr;
                             }
                             else if (typeof value === 'boolean') value = value ? '✓' : '✗';
                             else if (typeof value === 'string') {
-                                // Limitar strings largos a 150 caracteres
-                                if (value.length > 150) {
-                                    value = `<span title="${value.replace(/"/g, '&quot;')}">${value.substring(0, 150)}...</span>`;
+                                // Limitar strings largos a 80 caracteres con tooltip
+                                if (value.length > 80) {
+                                    value = `<span title="${value.replace(/"/g, '&quot;')}">${value.substring(0, 80)}...</span>`;
                                 }
                             }
                             html += `<td>${value}</td>`;

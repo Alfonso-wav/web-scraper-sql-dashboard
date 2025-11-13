@@ -60,24 +60,59 @@ async def extract_detailed_product_info(context, product_url: str):
                 continue
         
         # Características/Especificaciones técnicas (tabla más detallada)
-        spec_rows = await detail_page.query_selector_all("table.a-keyvalue tr, #productDetails_techSpec_section_1 tr, #productDetails_detailBullets_sections1 tr")
+        # Selectores CSS que cubren diferentes formatos de tablas de Amazon
+        spec_selectors = [
+            "table.a-keyvalue tr",
+            "#productDetails_techSpec_section_1 tr",
+            "#productDetails_detailBullets_sections1 tr",
+            "#productDetails_db_sections tr",  # Tabla de detalles alternativa
+            "table.prodDetTable tr",  # Tabla de detalles de producto
+            "div.a-section.table-padding table tbody tr"  # Tabla genérica en sección
+        ]
+        
+        spec_rows = []
+        for selector in spec_selectors:
+            rows = await detail_page.query_selector_all(selector)
+            if rows:
+                spec_rows.extend(rows)
+                if len(spec_rows) > 15:  # Si ya tenemos suficientes, no seguir buscando
+                    break
+        
         for row in spec_rows[:15]:  # Limitar a 15 especificaciones
             try:
-                label_elem = await row.query_selector("th, td.a-span3")
-                value_elem = await row.query_selector("td:not(.a-span3)")
+                # Intentar extraer usando td[1] y td[2] (key-value en celdas separadas)
+                label_elem = await row.query_selector("td:nth-child(1), th")
+                value_elem = await row.query_selector("td:nth-child(2)")
+                
+                # Si no funciona, intentar con clases específicas de Amazon
+                if not label_elem or not value_elem:
+                    label_elem = await row.query_selector("th, td.a-span3")
+                    value_elem = await row.query_selector("td:not(.a-span3)")
+                
                 if label_elem and value_elem:
                     label = await label_elem.inner_text()
                     value = await value_elem.inner_text()
                     if label and value:
-                        details["specifications"].append({
-                            "label": label.strip(),
-                            "value": value.strip()
-                        })
-                        # Buscar dimensiones y peso específicamente
-                        if "dimensiones" in label.lower() or "dimensions" in label.lower():
-                            details["dimensions"] = value.strip()
-                        if "peso" in label.lower() or "weight" in label.lower():
-                            details["weight"] = value.strip()
+                        label_clean = label.strip()
+                        value_clean = value.strip()
+                        
+                        # Evitar duplicados
+                        if not any(spec["label"] == label_clean for spec in details["specifications"]):
+                            details["specifications"].append({
+                                "label": label_clean,
+                                "value": value_clean
+                            })
+                            
+                            # Extraer marca si aparece aquí
+                            if "marca" in label_clean.lower() or "brand" in label_clean.lower():
+                                if details["brand"] == "N/A":
+                                    details["brand"] = value_clean
+                            
+                            # Buscar dimensiones y peso específicamente
+                            if "dimensiones" in label_clean.lower() or "dimensions" in label_clean.lower():
+                                details["dimensions"] = value_clean
+                            if "peso" in label_clean.lower() or "weight" in label_clean.lower():
+                                details["weight"] = value_clean
             except:
                 continue
         
@@ -177,15 +212,223 @@ async def extract_detailed_product_info(context, product_url: str):
     return details
 
 
+async def extract_product_basic_info(element, search_term: str, position: int, debug: bool = False):
+    """
+    Extrae información básica de un elemento de producto en la lista de resultados.
+    Esta función se puede ejecutar en paralelo.
+    """
+    try:
+        # ASIN (ID del producto)
+        asin = await element.get_attribute("data-asin")
+        
+        if debug and position == 1:
+            # Imprimir el HTML del primer elemento para debug
+            html = await element.inner_html()
+            print(f"\n🔍 DEBUG - HTML del primer producto:\n{html[:500]}...\n")
+        
+        # Título - intentar múltiples selectores
+        title = "N/A"
+        title_selectors = [
+            "h2 a span",
+            "h2 span",
+            ".a-size-medium.a-color-base.a-text-normal",
+            ".a-size-base-plus.a-color-base.a-text-normal",
+            "h2.a-size-mini a span"
+        ]
+        for selector in title_selectors:
+            title_elem = await element.query_selector(selector)
+            if title_elem:
+                title = await title_elem.inner_text()
+                if title and title.strip():
+                    break
+        
+        # URL del producto
+        product_url = "N/A"
+        link_elem = await element.query_selector("h2 a")
+        if not link_elem:
+            link_elem = await element.query_selector("a.a-link-normal")
+        if link_elem:
+            product_url = await link_elem.get_attribute("href")
+            if product_url and not product_url.startswith("http"):
+                product_url = f"https://www.amazon.es{product_url}"
+        
+        # Precio - capturar precio completo (euros + céntimos)
+        price = "N/A"
+        price_elem = await element.query_selector(".a-price .a-offscreen")
+        if price_elem:
+            price = await price_elem.inner_text()
+            price = price.strip()
+        else:
+            # Si no está, construir desde whole + fraction
+            price_whole = ""
+            price_fraction = ""
+            
+            whole_elem = await element.query_selector(".a-price-whole")
+            if whole_elem:
+                price_whole = await whole_elem.inner_text()
+                price_whole = price_whole.replace("\n", "").replace(",", ".").strip()
+            
+            fraction_elem = await element.query_selector(".a-price-fraction")
+            if fraction_elem:
+                price_fraction = await fraction_elem.inner_text()
+                price_fraction = price_fraction.strip()
+            
+            if price_whole:
+                price_whole = price_whole.rstrip(".,")
+                if price_fraction:
+                    price = f"{price_whole},{price_fraction}€"
+                else:
+                    price = f"{price_whole}€"
+        
+        # Rating
+        rating = "N/A"
+        rating_elem = await element.query_selector(".a-icon-alt")
+        if rating_elem:
+            rating = await rating_elem.inner_text()
+        
+        # Número de reseñas
+        reviews_count = "0"
+        reviews_selectors = [
+            "span.a-size-base.s-underline-text",
+            "span[aria-label*='valoraciones']",
+            ".a-size-base"
+        ]
+        for selector in reviews_selectors:
+            reviews_elem = await element.query_selector(selector)
+            if reviews_elem:
+                reviews_text = await reviews_elem.inner_text()
+                if reviews_text and any(char.isdigit() for char in reviews_text):
+                    reviews_count = reviews_text
+                    break
+        
+        # Imagen
+        image_url = "N/A"
+        img_elem = await element.query_selector("img.s-image")
+        if img_elem:
+            image_url = await img_elem.get_attribute("src")
+        
+        # Marca
+        brand = "N/A"
+        additional_specs = {}
+        
+        details_container = await element.query_selector("div.a-section.a-spacing-small")
+        if details_container:
+            detail_rows = await details_container.query_selector_all("div.a-row")
+            for row in detail_rows:
+                row_text = await row.inner_text()
+                if row_text and ":" in row_text:
+                    parts = row_text.split(":", 1)
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        value = parts[1].strip()
+                        if "brand" in key.lower() or "marca" in key.lower():
+                            brand = value
+                        else:
+                            additional_specs[key] = value
+        
+        if brand == "N/A":
+            brand_selectors = [
+                "h5 span.a-size-base.a-color-base",
+                "span.a-size-base-plus.a-color-base",
+                "div.a-row.a-size-base.a-color-secondary span.a-size-base.a-color-base",
+                ".s-line-clamp-1 .a-size-base-plus",
+                "span.a-color-base.puis-normal-weight-text"
+            ]
+            for selector in brand_selectors:
+                brand_elem = await element.query_selector(selector)
+                if brand_elem:
+                    brand_text = await brand_elem.inner_text()
+                    if brand_text and brand_text.strip():
+                        brand_clean = brand_text.strip()
+                        if (len(brand_clean) < 50 and 
+                            not brand_clean.replace(".", "").replace(",", "").isdigit() and
+                            "€" not in brand_clean and
+                            "valoraciones" not in brand_clean.lower()):
+                            brand = brand_clean
+                            break
+        
+        # Prime
+        has_prime = False
+        prime_elem = await element.query_selector("i.a-icon-prime, span[aria-label='Amazon Prime']")
+        if prime_elem:
+            has_prime = True
+        
+        # Envío gratis
+        free_shipping = False
+        shipping_elem = await element.query_selector("span[aria-label*='envío'], span:has-text('Envío GRATIS')")
+        if shipping_elem:
+            free_shipping = True
+        
+        # Disponibilidad
+        availability = "N/A"
+        availability_elem = await element.query_selector(".a-size-base.a-color-price, .a-size-base.a-color-success")
+        if availability_elem:
+            availability = await availability_elem.inner_text()
+        
+        # Descuento/Cupón
+        discount = "N/A"
+        discount_elem = await element.query_selector(".s-coupon-unclipped, .savingPriceOverride")
+        if discount_elem:
+            discount = await discount_elem.inner_text()
+        
+        # Precio anterior (tachado)
+        original_price = "N/A"
+        original_price_elem = await element.query_selector(".a-price.a-text-price .a-offscreen")
+        if original_price_elem:
+            original_price = await original_price_elem.inner_text()
+        
+        # Vendedor/Seller
+        seller = "N/A"
+        seller_elem = await element.query_selector(".a-size-base.a-color-secondary")
+        if seller_elem:
+            seller_text = await seller_elem.inner_text()
+            if seller_text and "de " in seller_text.lower():
+                seller = seller_text
+        
+        # Opciones de color/tamaño disponibles
+        options = []
+        options_elems = await element.query_selector_all(".a-button-text")
+        for opt_elem in options_elems[:5]:
+            opt_text = await opt_elem.inner_text()
+            if opt_text and opt_text.strip():
+                options.append(opt_text.strip())
+        
+        product_data = {
+            "asin": asin or "N/A",
+            "title": title.strip() if title else "N/A",
+            "brand": brand.strip() if brand else "N/A",
+            "price": price.strip() if price else "N/A",
+            "original_price": original_price.strip() if original_price else "N/A",
+            "discount": discount.strip() if discount else "N/A",
+            "rating": rating.strip() if rating else "N/A",
+            "reviews_count": reviews_count.strip() if reviews_count else "0",
+            "has_prime": has_prime,
+            "free_shipping": free_shipping,
+            "availability": availability.strip() if availability else "N/A",
+            "seller": seller.strip() if seller else "N/A",
+            "options": options,
+            "additional_specs": additional_specs,
+            "url": product_url,
+            "image_url": image_url,
+            "search_term": search_term,
+            "position": position
+        }
+        
+        return product_data if title != "N/A" else None
+    except Exception as e:
+        print(f"⚠️  Error extrayendo producto {position}: {e}", flush=True)
+        return None
+
+
 async def scrape_amazon_products(search_term: str, max_products: int = 50, debug: bool = False, detailed: bool = False, headless: bool = False):
     """
-    Scraper de productos de Amazon que extrae información de los productos mejor valorados.
+    Scraper de productos de Amazon con extracción paralela y asíncrona.
     
     Args:
         search_term: Término de búsqueda
         max_products: Número máximo de productos a extraer (default: 50)
         debug: Si es True, imprime información de depuración
-        detailed: Si es True, visita cada producto para obtener más información (más lento)
+        detailed: Si es True, visita cada producto para obtener más información (procesamiento paralelo)
         headless: Si es True, ejecuta el navegador sin ventana visible
     """
     products = []
@@ -193,6 +436,7 @@ async def scrape_amazon_products(search_term: str, max_products: int = 50, debug
     print(f"🚀 Iniciando scraping para: {search_term}", flush=True)
     print(f"📦 Objetivo: {max_products} productos", flush=True)
     print(f"🖥️  Modo headless: {'Activado (sin ventana)' if headless else 'Desactivado (con ventana)'}", flush=True)
+    print(f"⚡ Modo paralelo: {'Activado' if detailed else 'Desactivado (solo info básica)'}", flush=True)
     
     async with async_playwright() as p:
         print("🌐 Abriendo navegador...", flush=True)
@@ -207,259 +451,98 @@ async def scrape_amazon_products(search_term: str, max_products: int = 50, debug
         print(f"🔍 Navegando a Amazon.es...", flush=True)
         await page.goto(search_url, wait_until="domcontentloaded")
         print(f"✅ Página cargada, extrayendo productos...", flush=True)
-        await page.wait_for_timeout(2000)  # Esperar 2 segundos para que cargue
+        await page.wait_for_timeout(2000)
         
         page_num = 1
+        all_product_elements = []
         
-        while len(products) < max_products:
-            print(f"📄 Procesando página {page_num}...", flush=True)
+        # FASE 1: Recopilar todos los elementos de productos de todas las páginas
+        print(f"\n📋 FASE 1: Recopilando URLs de productos...", flush=True)
+        while len(all_product_elements) < max_products:
+            print(f"📄 Página {page_num}...", flush=True)
             
             # Esperar a que los productos se carguen
-            print(f"⏳ Esperando carga de productos...", flush=True)
             await page.wait_for_selector('[data-component-type="s-search-result"]', timeout=10000)
             
-            # Extraer productos de la página actual
+            # Extraer elementos de productos
             product_elements = await page.query_selector_all('[data-component-type="s-search-result"]')
-            print(f"🔎 Encontrados {len(product_elements)} productos en la página", flush=True)
+            print(f"   Encontrados {len(product_elements)} productos", flush=True)
             
-            # Extraer datos básicos primero (sin navegación)
-            products_data = []
-            for idx, element in enumerate(product_elements, 1):
-                if len(products) + len(products_data) >= max_products:
+            # Añadir a la lista general
+            for element in product_elements:
+                if len(all_product_elements) >= max_products:
                     break
-                
-                # Progress update cada producto
-                current_total = len(products) + len(products_data) + 1
-                print(f"🔄 [{current_total}/{max_products}] Extrayendo producto {idx} de la página {page_num}...", flush=True)
-                
-                try:
-                    # ASIN (ID del producto)
-                    asin = await element.get_attribute("data-asin")
-                    
-                    if debug and len(products) == 0:
-                        # Imprimir el HTML del primer elemento para debug
-                        html = await element.inner_html()
-                        print(f"\n🔍 DEBUG - HTML del primer producto:\n{html[:500]}...\n")
-                    
-                    # Título - intentar múltiples selectores
-                    title = "N/A"
-                    title_selectors = [
-                        "h2 a span",
-                        "h2 span",
-                        ".a-size-medium.a-color-base.a-text-normal",
-                        ".a-size-base-plus.a-color-base.a-text-normal",
-                        "h2.a-size-mini a span"
-                    ]
-                    for selector in title_selectors:
-                        title_elem = await element.query_selector(selector)
-                        if title_elem:
-                            title = await title_elem.inner_text()
-                            if title and title.strip():
-                                break
-                    
-                    # Precio - capturar precio completo (euros + céntimos)
-                    price = "N/A"
-                    # Intentar primero con el offscreen que tiene el precio completo
-                    price_elem = await element.query_selector(".a-price .a-offscreen")
-                    if price_elem:
-                        price = await price_elem.inner_text()
-                        price = price.strip()
-                    else:
-                        # Si no está, construir desde whole + fraction
-                        price_whole = ""
-                        price_fraction = ""
-                        
-                        whole_elem = await element.query_selector(".a-price-whole")
-                        if whole_elem:
-                            price_whole = await whole_elem.inner_text()
-                            price_whole = price_whole.replace("\n", "").replace(",", ".").strip()
-                        
-                        fraction_elem = await element.query_selector(".a-price-fraction")
-                        if fraction_elem:
-                            price_fraction = await fraction_elem.inner_text()
-                            price_fraction = price_fraction.strip()
-                        
-                        if price_whole:
-                            # Eliminar el punto/coma decimal si ya está en whole
-                            price_whole = price_whole.rstrip(".,")
-                            if price_fraction:
-                                price = f"{price_whole},{price_fraction}€"
-                            else:
-                                price = f"{price_whole}€"
-                    
-                    # Rating
-                    rating = "N/A"
-                    rating_elem = await element.query_selector(".a-icon-alt")
-                    if rating_elem:
-                        rating = await rating_elem.inner_text()
-                    
-                    # Número de reseñas - intentar múltiples selectores
-                    reviews_count = "0"
-                    reviews_selectors = [
-                        "span.a-size-base.s-underline-text",
-                        "span[aria-label*='valoraciones']",
-                        ".a-size-base"
-                    ]
-                    for selector in reviews_selectors:
-                        reviews_elem = await element.query_selector(selector)
-                        if reviews_elem:
-                            reviews_text = await reviews_elem.inner_text()
-                            if reviews_text and any(char.isdigit() for char in reviews_text):
-                                reviews_count = reviews_text
-                                break
-                    
-                    # URL del producto
-                    product_url = "N/A"
-                    link_elem = await element.query_selector("h2 a")
-                    if not link_elem:
-                        link_elem = await element.query_selector("a.a-link-normal")
-                    if link_elem:
-                        product_url = await link_elem.get_attribute("href")
-                        if product_url and not product_url.startswith("http"):
-                            product_url = f"https://www.amazon.es{product_url}"
-                    
-                    # Imagen
-                    image_url = "N/A"
-                    img_elem = await element.query_selector("img.s-image")
-                    if img_elem:
-                        image_url = await img_elem.get_attribute("src")
-                    
-                    # Marca y características adicionales del contenedor de detalles
-                    brand = "N/A"
-                    additional_specs = {}
-                    
-                    # Buscar en el contenedor de características del producto
-                    details_container = await element.query_selector("div.a-section.a-spacing-small")
-                    if details_container:
-                        # Buscar todas las filas de características
-                        detail_rows = await details_container.query_selector_all("div.a-row")
-                        for row in detail_rows:
-                            row_text = await row.inner_text()
-                            if row_text and ":" in row_text:
-                                parts = row_text.split(":", 1)
-                                if len(parts) == 2:
-                                    key = parts[0].strip()
-                                    value = parts[1].strip()
-                                    
-                                    # Si es el nombre de marca
-                                    if "brand" in key.lower() or "marca" in key.lower():
-                                        brand = value
-                                    else:
-                                        # Guardar otras características
-                                        additional_specs[key] = value
-                    
-                    # Si no encontró marca en el contenedor, intentar con selectores tradicionales
-                    if brand == "N/A":
-                        brand_selectors = [
-                            "h5 span.a-size-base.a-color-base",
-                            "span.a-size-base-plus.a-color-base",
-                            "div.a-row.a-size-base.a-color-secondary span.a-size-base.a-color-base",
-                            ".s-line-clamp-1 .a-size-base-plus",
-                            "span.a-color-base.puis-normal-weight-text"
-                        ]
-                        for selector in brand_selectors:
-                            brand_elem = await element.query_selector(selector)
-                            if brand_elem:
-                                brand_text = await brand_elem.inner_text()
-                                # Validar que sea realmente una marca
-                                if brand_text and brand_text.strip():
-                                    brand_clean = brand_text.strip()
-                                    if (len(brand_clean) < 50 and 
-                                        not brand_clean.replace(".", "").replace(",", "").isdigit() and
-                                        "€" not in brand_clean and
-                                        "valoraciones" not in brand_clean.lower()):
-                                        brand = brand_clean
-                                        break
-                    
-                    # Prime
-                    has_prime = False
-                    prime_elem = await element.query_selector("i.a-icon-prime, span[aria-label='Amazon Prime']")
-                    if prime_elem:
-                        has_prime = True
-                    
-                    # Envío gratis
-                    free_shipping = False
-                    shipping_elem = await element.query_selector("span[aria-label*='envío'], span:has-text('Envío GRATIS')")
-                    if shipping_elem:
-                        free_shipping = True
-                    
-                    # Disponibilidad
-                    availability = "N/A"
-                    availability_elem = await element.query_selector(".a-size-base.a-color-price, .a-size-base.a-color-success")
-                    if availability_elem:
-                        availability = await availability_elem.inner_text()
-                    
-                    # Descuento/Cupón
-                    discount = "N/A"
-                    discount_elem = await element.query_selector(".s-coupon-unclipped, .savingPriceOverride")
-                    if discount_elem:
-                        discount = await discount_elem.inner_text()
-                    
-                    # Precio anterior (tachado)
-                    original_price = "N/A"
-                    original_price_elem = await element.query_selector(".a-price.a-text-price .a-offscreen")
-                    if original_price_elem:
-                        original_price = await original_price_elem.inner_text()
-                    
-                    # Vendedor/Seller
-                    seller = "N/A"
-                    seller_elem = await element.query_selector(".a-size-base.a-color-secondary")
-                    if seller_elem:
-                        seller_text = await seller_elem.inner_text()
-                        if seller_text and "de " in seller_text.lower():
-                            seller = seller_text
-                    
-                    # Opciones de color/tamaño disponibles
-                    options = []
-                    options_elems = await element.query_selector_all(".a-button-text")
-                    for opt_elem in options_elems[:5]:  # Limitar a 5 opciones
-                        opt_text = await opt_elem.inner_text()
-                        if opt_text and opt_text.strip():
-                            options.append(opt_text.strip())
-                    
-                    product_data = {
-                        "asin": asin or "N/A",
-                        "title": title.strip() if title else "N/A",
-                        "brand": brand.strip() if brand else "N/A",
-                        "price": price.strip() if price else "N/A",
-                        "original_price": original_price.strip() if original_price else "N/A",
-                        "discount": discount.strip() if discount else "N/A",
-                        "rating": rating.strip() if rating else "N/A",
-                        "reviews_count": reviews_count.strip() if reviews_count else "0",
-                        "has_prime": has_prime,
-                        "free_shipping": free_shipping,
-                        "availability": availability.strip() if availability else "N/A",
-                        "seller": seller.strip() if seller else "N/A",
-                        "options": options,
-                        "additional_specs": additional_specs,  # Características adicionales del producto
-                        "url": product_url,
-                        "image_url": image_url,
-                        "search_term": search_term,
-                        "position": len(products) + len(products_data) + 1
-                    }
-                    
-                    # Solo añadir si al menos tiene título
-                    if title != "N/A":
-                        products_data.append(product_data)
-                        title_preview = title[:50] if len(title) > 50 else title
-                        current_total = len(products) + len(products_data)
-                        print(f"✅ [{current_total}/{max_products}] {title_preview}...", flush=True)
-                    elif debug:
-                        print(f"  ⚠️ Producto sin título - ASIN: {asin}", flush=True)
-                    
-                except Exception as e:
-                    if debug:
-                        print(f"  ⚠️ Error extrayendo producto: {e}", flush=True)
-                        import traceback
-                        traceback.print_exc()
-                    continue
+                all_product_elements.append(element)
             
-            # Si modo detallado, ahora visitar cada producto en nueva pestaña
-            if detailed:
-                print(f"🔍 Extrayendo información detallada de {len(products_data)} productos...", flush=True)
-                for idx, product_data in enumerate(products_data, 1):
+            print(f"   Total acumulado: {len(all_product_elements)}/{max_products}", flush=True)
+            
+            # Verificar si necesitamos más productos y hay siguiente página
+            if len(all_product_elements) < max_products:
+                next_button = await page.query_selector("a.s-pagination-next")
+                if next_button:
+                    is_disabled = await next_button.get_attribute("aria-disabled")
+                    if is_disabled != "true":
+                        print(f"   ➡️  Navegando a página {page_num + 1}...", flush=True)
+                        await next_button.click()
+                        await page.wait_for_timeout(2000)
+                        page_num += 1
+                    else:
+                        print("   📍 No hay más páginas disponibles", flush=True)
+                        break
+                else:
+                    print("   📍 No se encontró botón de siguiente página", flush=True)
+                    break
+            else:
+                break
+        
+        print(f"\n✅ FASE 1 completada: {len(all_product_elements)} productos encontrados", flush=True)
+        
+        # FASE 2: Extraer información básica en paralelo (batch processing)
+        print(f"\n⚡ FASE 2: Extrayendo información básica en paralelo...", flush=True)
+        
+        # Procesar en lotes para no sobrecargar
+        batch_size = 10
+        products_data = []
+        
+        for i in range(0, len(all_product_elements), batch_size):
+            batch = all_product_elements[i:i+batch_size]
+            batch_num = (i // batch_size) + 1
+            total_batches = (len(all_product_elements) + batch_size - 1) // batch_size
+            
+            print(f"   Lote {batch_num}/{total_batches} ({len(batch)} productos)...", flush=True)
+            
+            # Crear tareas para procesar este lote en paralelo
+            tasks = [
+                extract_product_basic_info(element, search_term, i + idx + 1, debug)
+                for idx, element in enumerate(batch)
+            ]
+            
+            # Ejecutar todas las tareas del lote en paralelo
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Filtrar resultados válidos
+            for result in batch_results:
+                if result and not isinstance(result, Exception):
+                    products_data.append(result)
+            
+            print(f"   ✓ Lote {batch_num} completado ({len([r for r in batch_results if r and not isinstance(r, Exception)])} válidos)", flush=True)
+        
+        products.extend(products_data)
+        print(f"\n✅ FASE 2 completada: {len(products)} productos con información básica", flush=True)
+        
+        # FASE 3: Si modo detallado, extraer información adicional en paralelo
+        if detailed and products:
+            print(f"\n🔍 FASE 3: Extrayendo información detallada en paralelo...", flush=True)
+            print(f"   Procesando {len(products)} productos con {len(products)//5 + 1} conexiones simultáneas", flush=True)
+            
+            # Crear tareas para extraer información detallada en paralelo
+            # Limitar concurrencia a 5 para no sobrecargar
+            semaphore = asyncio.Semaphore(5)
+            
+            async def extract_with_limit(product_data, idx):
+                async with semaphore:
                     if product_data.get("url") and product_data["url"] != "N/A":
-                        print(f"🌐 [{idx}/{len(products_data)}] Visitando: {product_data['title'][:40]}...", flush=True)
+                        print(f"   [{idx+1}/{len(products)}] {product_data['title'][:40]}...", flush=True)
                         detailed_info = await extract_detailed_product_info(context, product_data["url"])
                         
                         # Actualizar marca si se encontró en la página de detalle
@@ -468,31 +551,15 @@ async def scrape_amazon_products(search_term: str, max_products: int = 50, debug
                         
                         # Añadir el resto de información detallada
                         product_data.update(detailed_info)
-                        print(f"✔️  [{idx}/{len(products_data)}] Completado", flush=True)
+                        return True
+                    return False
             
-            # Añadir todos los productos de esta página
-            print(f"💾 Agregando {len(products_data)} productos al resultado...", flush=True)
-            products.extend(products_data)
-            print(f"📊 Total acumulado: {len(products)}/{max_products} productos", flush=True)
+            # Ejecutar todas las extracciones detalladas en paralelo (con límite de 5 simultáneas)
+            detail_tasks = [extract_with_limit(product, idx) for idx, product in enumerate(products)]
+            detail_results = await asyncio.gather(*detail_tasks, return_exceptions=True)
             
-            # Verificar si hay siguiente página
-            if len(products) < max_products:
-                next_button = await page.query_selector("a.s-pagination-next")
-                if next_button:
-                    is_disabled = await next_button.get_attribute("aria-disabled")
-                    if is_disabled != "true":
-                        print(f"  ➡️  Navegando a página {page_num + 1}...", flush=True)
-                        await next_button.click()
-                        await page.wait_for_timeout(2000)  # Esperar 2 segundos
-                        page_num += 1
-                    else:
-                        print("📍 No hay más páginas disponibles", flush=True)
-                        break
-                else:
-                    print("📍 No se encontró botón de siguiente página")
-                    break
-            else:
-                break
+            completed = sum(1 for r in detail_results if r and not isinstance(r, Exception))
+            print(f"\n✅ FASE 3 completada: {completed}/{len(products)} productos con información detallada", flush=True)
         
         await browser.close()
     
